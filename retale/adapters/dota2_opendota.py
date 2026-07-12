@@ -28,6 +28,7 @@ from retale.core.schema import (
 
 OPENDOTA_MATCH_URL = "https://api.opendota.com/api/matches/{match_id}"
 OPENDOTA_HEROES_URL = "https://api.opendota.com/api/constants/heroes"
+OPENDOTA_CHAT_WHEEL_URL = "https://api.opendota.com/api/constants/chat_wheel"
 
 # Objective type -> (EventKind, base importance, human phrasing)
 _OBJECTIVE_MAP: dict[str, tuple[EventKind, float, str]] = {
@@ -70,6 +71,32 @@ _POWER_RUNES = {
     8: "Shield",
 }
 
+# Community additions are welcome as taunt idioms evolve across regions and patches.
+_TAUNT_TEXTS = {
+    "?",
+    "??",
+    "???",
+    "ez",
+    "ez game",
+    "gg ez",
+    "noob",
+    "report",
+    "报警",
+    "菜",
+    "?好",
+}
+
+_TAUNT_CHAT_WHEEL_SUBSTRINGS = {
+    "well played",
+    "gg",
+    "ez",
+    "haha",
+    "thanks",
+    "my bad",
+    "fish bait",
+    "?",
+}
+
 
 class Dota2OpenDotaAdapter(GameAdapter):
     game_id = "dota2"
@@ -85,6 +112,7 @@ class Dota2OpenDotaAdapter(GameAdapter):
             raise ValueError("Match JSON has no players; is the match parsed?")
 
         hero_lookup = self._hero_lookup()
+        chat_wheel_lookup = self._chat_wheel_lookup()
         parsed = self._is_parsed_match(match)
         if not parsed:
             match_id = match.get("match_id", "unknown")
@@ -122,7 +150,7 @@ class Dota2OpenDotaAdapter(GameAdapter):
         events: list[NarrativeEvent] = []
         events += self._objective_events(match, me, hero, hero_lookup)
         events += self._player_events(players, me, hero, hero_lookup)
-        events += self._chat_events(match, players, me, hero_lookup)
+        events += self._chat_events(match, players, me, hero_lookup, chat_wheel_lookup)
         events += self._gold_swing_events(match)
         events += self._lane_phase_events(match)
         events += self._teamfight_events(match, me, hero, hero_lookup)
@@ -131,6 +159,7 @@ class Dota2OpenDotaAdapter(GameAdapter):
         signature_event = self._signature_event(me, hero, hero_lookup, context)
         if signature_event is not None:
             events.append(signature_event)
+        self._apply_chat_drama_tags(events, hero)
         match_start_time = min(0.0, min((event.t for event in events), default=0.0)) - 1.0
         events.append(NarrativeEvent(
             t=match_start_time, kind=EventKind.MATCH_START, actor=handle,
@@ -150,7 +179,7 @@ class Dota2OpenDotaAdapter(GameAdapter):
         """source is a match id, an OpenDota URL, or a path to saved JSON."""
         p = Path(source)
         if p.suffix == ".json" and p.exists():
-            return json.loads(p.read_text())
+            return json.loads(p.read_text(encoding="utf-8"))
         match_id = source.rstrip("/").split("/")[-1]
         resp = self.session.get(OPENDOTA_MATCH_URL.format(match_id=match_id), timeout=30)
         resp.raise_for_status()
@@ -185,6 +214,29 @@ class Dota2OpenDotaAdapter(GameAdapter):
                 if str(raw_id).isdigit():
                     by_id_slug[int(raw_id)] = str(hero_slug)
         return {"by_id": by_id, "by_slug": by_slug, "by_id_slug": by_id_slug}
+
+    def _chat_wheel_lookup(self) -> dict[Any, str]:
+        try:
+            resp = self.session.get(OPENDOTA_CHAT_WHEEL_URL, timeout=30)
+            resp.raise_for_status()
+            payload = resp.json()
+            if not isinstance(payload, dict):
+                return {}
+        except Exception:
+            return {}
+
+        lookup: dict[Any, str] = {}
+        for raw_id, raw_entry in payload.items():
+            if isinstance(raw_entry, dict):
+                message = raw_entry.get("message") or raw_entry.get("label")
+            else:
+                message = raw_entry
+            if not message:
+                continue
+            lookup[str(raw_id)] = str(message)
+            if str(raw_id).isdigit():
+                lookup[int(raw_id)] = str(message)
+        return lookup
 
     @staticmethod
     def _hero_name(player: dict[str, Any], hero_lookup: dict[str, dict[Any, str]]) -> str:
@@ -326,6 +378,7 @@ class Dota2OpenDotaAdapter(GameAdapter):
         players: list[dict],
         me: dict[str, Any],
         hero_lookup: dict[str, dict[Any, str]],
+        chat_wheel_lookup: dict[Any, str],
     ) -> list[NarrativeEvent]:
         players_by_slot = {
             int(player.get("player_slot", -1)): player
@@ -333,28 +386,45 @@ class Dota2OpenDotaAdapter(GameAdapter):
             if player.get("player_slot") is not None
         }
         protagonist_slot = int(me.get("player_slot", -1))
+        protagonist_is_radiant = protagonist_slot < 128
         out: list[NarrativeEvent] = []
 
         for line in match.get("chat", []) or []:
-            if str(line.get("type", "")) != "chat":
-                continue
-            message = str(line.get("key", "")).strip()
-            if not message or message.isdigit():
+            raw_type = str(line.get("type", ""))
+            raw_key = str(line.get("key", "")).strip()
+            channel = "chatwheel" if raw_type == "chatwheel" or raw_key.isdigit() else "chat"
+            if channel == "chatwheel":
+                message = self._resolve_chat_wheel_message(raw_key, chat_wheel_lookup)
+            else:
+                message = raw_key
+            if not message:
                 continue
 
-            actor, speaker_slot = self._chat_actor(line, players_by_slot, hero_lookup)
+            actor, speaker_slot, speaker_hero = self._chat_actor(line, players_by_slot, hero_lookup)
             protagonist_spoke = speaker_slot == protagonist_slot
             truncated_message = message[:120]
-            summary = f"{actor}: {truncated_message}" if actor else truncated_message
+            if channel == "chatwheel":
+                summary = f'{actor}: "{truncated_message}" (chat wheel)' if actor else f'"{truncated_message}" (chat wheel)'
+                base_importance = 0.15
+            else:
+                summary = f"{actor}: {truncated_message}" if actor else truncated_message
+                base_importance = 0.35 if protagonist_spoke else 0.2
+            data = {**line, "channel": channel}
+            if speaker_slot is not None:
+                data["enemy"] = (speaker_slot < 128) != protagonist_is_radiant
+            if speaker_hero:
+                data["speaker_hero"] = speaker_hero
+            if self._is_taunt(truncated_message, channel):
+                data["taunt"] = True
 
             out.append(NarrativeEvent(
                 t=float(line.get("time", 0)),
                 kind=EventKind.SOCIAL,
                 actor=actor or None,
                 summary=summary,
-                importance=0.35 if protagonist_spoke else 0.2,
+                importance=base_importance,
                 protagonist_involved=protagonist_spoke,
-                data=line,
+                data=data,
             ))
         return out
 
@@ -763,23 +833,65 @@ class Dota2OpenDotaAdapter(GameAdapter):
         line: dict[str, Any],
         players_by_slot: dict[int, dict[str, Any]],
         hero_lookup: dict[str, dict[Any, str]],
-    ) -> tuple[str, int | None]:
+    ) -> tuple[str, int | None, str | None]:
         speaker_slot = line.get("player_slot", line.get("unit"))
         if isinstance(speaker_slot, str) and speaker_slot.isdigit():
             speaker_slot = int(speaker_slot)
         if isinstance(speaker_slot, int):
             player = players_by_slot.get(speaker_slot)
             if player:
+                hero_name = Dota2OpenDotaAdapter._hero_name(player, hero_lookup)
                 actor = str(
-                    player.get("personaname") or Dota2OpenDotaAdapter._hero_name(player, hero_lookup)
+                    player.get("personaname") or hero_name
                 )
-                return actor, speaker_slot
-            return f"slot_{speaker_slot}", speaker_slot
+                return actor, speaker_slot, hero_name
+            return f"slot_{speaker_slot}", speaker_slot, None
 
         actor = str(line.get("unit", "")).strip()
         if actor.startswith("npc_dota_hero_"):
             actor = actor.replace("npc_dota_hero_", "").replace("_", " ").title()
-        return actor, None
+        return actor, None, actor or None
+
+    @staticmethod
+    def _resolve_chat_wheel_message(raw_key: str, chat_wheel_lookup: dict[Any, str]) -> str | None:
+        message = chat_wheel_lookup.get(raw_key)
+        if message is None and raw_key.isdigit():
+            message = chat_wheel_lookup.get(int(raw_key))
+        return str(message).strip() if message else None
+
+    @staticmethod
+    def _is_taunt(message: str, channel: str) -> bool:
+        lowered = message.strip().lower()
+        if channel == "chat":
+            return lowered in _TAUNT_TEXTS or (lowered and set(lowered) == {"?"})
+        return any(fragment in lowered for fragment in _TAUNT_CHAT_WHEEL_SUBSTRINGS)
+
+    @staticmethod
+    def _apply_chat_drama_tags(events: list[NarrativeEvent], protagonist_hero: str) -> None:
+        protagonist_windows = [
+            event
+            for event in events
+            if event.kind in {EventKind.KILL, EventKind.DEATH} and event.protagonist_involved
+        ]
+        death_times_by_target: dict[str, list[float]] = {}
+        for event in events:
+            if event.kind == EventKind.DEATH and event.target:
+                death_times_by_target.setdefault(str(event.target), []).append(float(event.t))
+            if event.kind == EventKind.KILL and event.target:
+                death_times_by_target.setdefault(str(event.target), []).append(float(event.t))
+
+        for event in events:
+            if event.kind != EventKind.SOCIAL or not event.data.get("taunt"):
+                continue
+            speaker_hero = event.data.get("speaker_hero")
+            if speaker_hero:
+                for death_time in death_times_by_target.get(str(speaker_hero), []):
+                    if event.t < death_time <= event.t + 60:
+                        event.importance = max(event.importance, 0.6)
+                        event.data["hubris"] = True
+                        break
+            if any(abs(event.t - candidate.t) <= 30 for candidate in protagonist_windows):
+                event.importance = max(event.importance, 0.45)
 
     @staticmethod
     def _advantage_sign(value: int | float) -> int:

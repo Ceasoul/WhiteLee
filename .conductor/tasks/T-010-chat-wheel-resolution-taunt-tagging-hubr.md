@@ -1,3 +1,12 @@
+---
+id: T-010
+title: Chat wheel resolution, taunt tagging, hubris detection
+status: done
+priority: 1
+depends: []
+base: d9c808f265b6437d9794bf6c020c4845a5d317bc
+---
+
 ## Context
 
 Product-level feedback: Dota 2's dramatic beats correlate strongly with chat
@@ -71,3 +80,7 @@ appear" is superseded - update it to assert they appear RESOLVED.
       for an enemy speaker and an ally speaker; the T-005 "no digit-only
       SOCIAL" assertion still holds (resolved text is not digits).
 - [ ] `python -m pytest tests/ -q` passes; `ruff check retale/` clean.
+
+## Architect feedback (rework 1)
+
+打回一处:_TAUNT_TEXTS 中的三个中文词条被写成了 Unicode 替换字符(\ufffd),中文嘲讽词表实际失效。要求:(1) 用真实中文重写这三个词条:报警、菜、?好,写文件时显式使用 UTF-8 编码;(2) 新增测试:fixture 中加一条敌方 typed chat 内容为'菜',断言其 taunt=True 且 summary 含'菜',防止编码损毁再次静默通过;(3) 修好后在报告 notes 中粘贴 python -c 打印 _TAUNT_TEXTS 的实际输出。另记一条纪律(无需改动):测试只为规格中的要求背书,'Fish bait! 应为嘲讽'是你的测试自创的需求而非规格回归,词条可保留,但 notes 中的'regression'表述不实。

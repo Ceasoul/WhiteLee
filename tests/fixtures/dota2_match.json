@@ -235,10 +235,28 @@
    "key": "One more clean fight and the map is ours. Keep lanes shoved, hold buyback, and do not overextend beyond vision."
   },
   {
+   "time": 1330,
+   "player_slot": 128,
+   "type": "chat",
+   "key": "菜"
+  },
+  {
+   "time": 1870,
+   "player_slot": 128,
+   "type": "chat",
+   "key": "?"
+  },
+  {
    "time": 1810,
    "player_slot": 128,
    "type": "chatwheel",
    "key": "93001"
+  },
+  {
+   "time": 1820,
+   "player_slot": 128,
+   "type": "chatwheel",
+   "key": "999999"
   }
  ],
  "radiant_gold_adv": [

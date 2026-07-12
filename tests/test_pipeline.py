@@ -26,6 +26,11 @@ HERO_CONSTANTS = {
     "24": {"name": "npc_dota_hero_spirit_breaker", "localized_name": "Spirit Breaker"},
 }
 
+CHAT_WHEEL_CONSTANTS = {
+    "71": {"message": "Well played!"},
+    "93001": {"label": "Fish bait!"},
+}
+
 
 class FakeResponse:
     def __init__(self, payload=None, should_raise=False):
@@ -41,21 +46,32 @@ class FakeResponse:
 
 
 class FakeSession:
-    def __init__(self, payload=None, should_raise=False):
+    def __init__(self, payload=None, should_raise=False, url_map=None):
         self.payload = payload
         self.should_raise = should_raise
+        self.url_map = url_map or {}
         self.calls = []
 
     def get(self, url, timeout=0):
         self.calls.append((url, timeout))
         if self.should_raise:
             raise RuntimeError("boom")
-        return FakeResponse(self.payload, should_raise=False)
+        payload = self.url_map.get(url, self.payload)
+        return FakeResponse(payload, should_raise=False)
+
+
+def _constants_session():
+    return FakeSession(
+        HERO_CONSTANTS,
+        url_map={
+            "https://api.opendota.com/api/constants/chat_wheel": CHAT_WHEEL_CONSTANTS,
+        },
+    )
 
 
 @pytest.fixture()
 def extraction():
-    adapter = Dota2OpenDotaAdapter(session=FakeSession(HERO_CONSTANTS))
+    adapter = Dota2OpenDotaAdapter(session=_constants_session())
     return adapter.extract(str(FIXTURE), protagonist_hint="Ceaseless")
 
 
@@ -67,7 +83,7 @@ def test_adapter_resolves_protagonist(extraction):
 
 
 def test_hero_names_resolve_via_constants_map():
-    adapter = Dota2OpenDotaAdapter(session=FakeSession(HERO_CONSTANTS))
+    adapter = Dota2OpenDotaAdapter(session=_constants_session())
     result = adapter.extract(str(FIXTURE), protagonist_hint="Ceaseless")
 
     assert result.context.protagonist.persona == "Slark"
@@ -87,7 +103,7 @@ def test_constants_fetch_failure_degrades_to_hero_id():
 
 
 def test_unparsed_match_sets_flag_and_warns(capsys):
-    adapter = Dota2OpenDotaAdapter(session=FakeSession(HERO_CONSTANTS))
+    adapter = Dota2OpenDotaAdapter(session=_constants_session())
     result = adapter.extract(str(UNPARSED_FIXTURE), protagonist_hint="Ceaseless")
     captured = capsys.readouterr()
 
@@ -107,7 +123,7 @@ def test_death_detection_uses_exact_slug_match_for_zeus(tmp_path: Path):
     zeus_fixture = tmp_path / "dota2_zeus_slug.json"
     zeus_fixture.write_text(json.dumps(match_data), encoding="utf-8")
 
-    adapter = Dota2OpenDotaAdapter(session=FakeSession(HERO_CONSTANTS))
+    adapter = Dota2OpenDotaAdapter(session=_constants_session())
     result = adapter.extract(str(zeus_fixture), protagonist_hint="Ceaseless")
 
     death_events = [event for event in result.events if event.kind == EventKind.DEATH]
@@ -126,7 +142,7 @@ def test_adapter_event_stream(extraction):
     # MATCH_START must lead even with negative-time pre-game events.
     assert extraction.events[0].kind == EventKind.MATCH_START
     assert extraction.events[1].kind == EventKind.SOCIAL
-    assert extraction.events[1].t == -40
+    assert extraction.events[1].t == -83
     # protagonist involvement is marked
     assert any(e.protagonist_involved for e in extraction.events)
 
@@ -176,8 +192,15 @@ def test_chat_and_economy_events(extraction):
     assert len(social_events) >= 4
     assert all(not event.summary.split(": ", 1)[-1].isdigit() for event in social_events)
     assert any(event.t == -40 for event in social_events)
+    assert any(event.summary == 'ZapGod: "Well played!" (chat wheel)' for event in social_events)
+    assert any(event.summary == 'FingerOfDeath: "Fish bait!" (chat wheel)' for event in social_events)
+    assert not any("999999" in event.summary for event in social_events)
     assert any(event.actor == "Ceaseless" and event.importance == 0.35 for event in social_events)
     assert any(event.actor != "Ceaseless" and event.importance == 0.2 for event in social_events)
+    ally_chatwheel = next(event for event in social_events if event.summary == 'ZapGod: "Well played!" (chat wheel)')
+    enemy_chatwheel = next(event for event in social_events if event.summary == 'FingerOfDeath: "Fish bait!" (chat wheel)')
+    chinese_taunt = next(event for event in social_events if event.summary == "FingerOfDeath: 菜")
+    hubris_taunt = next(event for event in social_events if event.summary == "FingerOfDeath: ?")
     swing_events = [event for event in economy_events if "tide of gold" in event.summary]
     assert len(swing_events) == 2
     assert [event.summary for event in swing_events] == [
@@ -212,6 +235,19 @@ def test_chat_and_economy_events(extraction):
     assert len(signature_events) == 1
     assert "Essence Shift" in signature_events[0].summary
     assert extraction.context.world["signature"]["name"] == "Essence Shift"
+    assert ally_chatwheel.data["channel"] == "chatwheel"
+    assert ally_chatwheel.data["enemy"] is False
+    assert enemy_chatwheel.data["channel"] == "chatwheel"
+    assert enemy_chatwheel.data["enemy"] is True
+    assert "菜" in chinese_taunt.summary
+    assert chinese_taunt.data["channel"] == "chat"
+    assert chinese_taunt.data["enemy"] is True
+    assert chinese_taunt.data["taunt"] is True
+    assert hubris_taunt.data["channel"] == "chat"
+    assert hubris_taunt.data["enemy"] is True
+    assert hubris_taunt.data["taunt"] is True
+    assert hubris_taunt.data["hubris"] is True
+    assert hubris_taunt.importance == 0.6
 
 
 def test_teamfight_misalignment_falls_back_without_crashing(tmp_path: Path):
@@ -220,7 +256,7 @@ def test_teamfight_misalignment_falls_back_without_crashing(tmp_path: Path):
     misaligned_fixture = tmp_path / "dota2_misaligned.json"
     misaligned_fixture.write_text(json.dumps(match_data), encoding="utf-8")
 
-    adapter = Dota2OpenDotaAdapter(session=FakeSession(HERO_CONSTANTS))
+    adapter = Dota2OpenDotaAdapter(session=_constants_session())
     result = adapter.extract(str(misaligned_fixture), protagonist_hint="Ceaseless")
 
     fallback_fight = next(
@@ -232,7 +268,7 @@ def test_teamfight_misalignment_falls_back_without_crashing(tmp_path: Path):
 
 
 def test_unparsed_match_does_not_emit_combat_texture_events():
-    adapter = Dota2OpenDotaAdapter(session=FakeSession(HERO_CONSTANTS))
+    adapter = Dota2OpenDotaAdapter(session=_constants_session())
     result = adapter.extract(str(UNPARSED_FIXTURE), protagonist_hint="Ceaseless")
 
     assert "signature" not in result.context.world
