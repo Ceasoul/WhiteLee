@@ -175,8 +175,9 @@ def test_cli_codex_existing_file_skips_generation_and_missing_file_writes(monkey
             captured["build_calls"] = captured.get("build_calls", 0) + 1
             return {"heroes": {"Slark": "小鱼人"}, "protagonist_intro": "", "skills": {}, "factions": {}}
 
-        def write_story(self, plan, on_chapter=None, codex=None):
+        def write_story(self, plan, on_chapter=None, codex=None, progress_path=None):
             captured["codex"] = codex
+            captured["progress_path"] = progress_path
             prose = "## Title\n\nBody"
             if on_chapter:
                 on_chapter(plan.chapters[0], prose)

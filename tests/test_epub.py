@@ -106,7 +106,7 @@ def test_cli_writes_epub_via_chapter_callback(monkeypatch, tmp_path: Path):
                 "factions": {},
             }
 
-        def write_story(self, plan: FakePlan, on_chapter=None, codex=None) -> str:
+        def write_story(self, plan: FakePlan, on_chapter=None, codex=None, progress_path=None) -> str:
             parts = ["# Knight - a dota2 tale\n"]
             for chapter, prose in zip(plan.chapters, chapter_prose):
                 parts.append(prose)

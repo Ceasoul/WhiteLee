@@ -19,6 +19,8 @@ import json
 import os
 import re
 import sys
+import time
+from hashlib import sha256
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -71,19 +73,45 @@ class Completion:
     finish_reason: str = "stop"
 
 
+@dataclass
+class HTTPFailure(Exception):
+    provider_label: str
+    status_code: int
+    body_excerpt: str
+    headers: dict[str, str]
+
+    def as_runtime_error(self) -> RuntimeError:
+        return RuntimeError(f"{self.provider_label} HTTP {self.status_code}: {self.body_excerpt}")
+
+
 # ---------------------------------------------------------------------------
 # LLM providers
 # ---------------------------------------------------------------------------
 
 class LLMClient:
-    def __init__(self, model_override: str | None = None):
+    def __init__(self, model_override: str | None = None, sleep_fn=None):
         self.provider = os.environ.get("RETALE_PROVIDER", "anthropic")
         self.model = model_override or os.environ.get("RETALE_MODEL", "")
+        self._sleep = sleep_fn or time.sleep
 
     def complete(self, system: str, user: str, max_tokens: int = 2000) -> Completion:
-        if self.provider == "anthropic":
-            return self._anthropic(system, user, max_tokens)
-        return self._openai_compatible(system, user, max_tokens)
+        default_waits = [5.0, 15.0, 45.0]
+        for attempt in range(4):
+            try:
+                if self.provider == "anthropic":
+                    return self._anthropic(system, user, max_tokens)
+                return self._openai_compatible(system, user, max_tokens)
+            except HTTPFailure as error:
+                is_transient = error.status_code == 429 or error.status_code >= 500
+                if not is_transient or attempt == 3:
+                    raise error.as_runtime_error()
+                wait_seconds = self._retry_wait_seconds(error, default_waits[attempt])
+                print(
+                    f"[retale] retry {attempt + 1}/3 after HTTP {error.status_code}; waiting {wait_seconds}s",
+                    file=sys.stderr,
+                )
+                self._sleep(wait_seconds)
+        raise RuntimeError("unreachable")
 
     def _anthropic(self, system: str, user: str, max_tokens: int) -> Completion:
         key = os.environ.get("ANTHROPIC_API_KEY")
@@ -100,8 +128,11 @@ class LLMClient:
             timeout=120)
         body = resp.text[:500]
         if not resp.ok:
-            raise RuntimeError(
-                f"Anthropic HTTP {resp.status_code}: {body}"
+            raise HTTPFailure(
+                provider_label="Anthropic",
+                status_code=resp.status_code,
+                body_excerpt=body,
+                headers=dict(getattr(resp, "headers", {}) or {}),
             )
         payload = resp.json()
         finish_reason = "length" if payload.get("stop_reason") == "max_tokens" else "stop"
@@ -138,8 +169,11 @@ class LLMClient:
             timeout=120)
         body = resp.text[:500]
         if not resp.ok:
-            raise RuntimeError(
-                f"OpenAI-compatible HTTP {resp.status_code}: {body}"
+            raise HTTPFailure(
+                provider_label="OpenAI-compatible",
+                status_code=resp.status_code,
+                body_excerpt=body,
+                headers=dict(getattr(resp, "headers", {}) or {}),
             )
         data = resp.json()
         choice = data["choices"][0]
@@ -147,6 +181,19 @@ class LLMClient:
             text=choice["message"]["content"],
             finish_reason=choice.get("finish_reason", "stop"),
         )
+
+    @staticmethod
+    def _retry_wait_seconds(error: HTTPFailure, default_wait: float) -> float:
+        retry_after = error.headers.get("Retry-After")
+        if retry_after:
+            try:
+                return min(float(retry_after), 90.0)
+            except ValueError:
+                pass
+        match = re.search(r"retry in (\d+(?:\.\d+)?)s", error.body_excerpt, flags=re.IGNORECASE)
+        if match:
+            return min(float(match.group(1)), 90.0)
+        return min(default_wait, 90.0)
 
 
 # ---------------------------------------------------------------------------
@@ -158,16 +205,39 @@ class Styler:
         self.style = style
         self.client = client or LLMClient()
 
-    def write_story(self, plan: StoryPlan, on_chapter=None, codex: dict[str, Any] | None = None) -> str:
+    def write_story(
+        self,
+        plan: StoryPlan,
+        on_chapter=None,
+        codex: dict[str, Any] | None = None,
+        progress_path: Path | None = None,
+    ) -> str:
         if codex is None:
             codex = self.build_codex(plan)
+        fingerprint = self._fingerprint(plan, codex)
+        restored = self._load_progress(progress_path, fingerprint)
         outline = self._outline_text(plan, codex)
         parts = [f"# {self._title(plan)}\n"]
+        checkpoint_chapters = {str(index): text for index, text in restored.items()}
+        if restored:
+            restored_indices = sorted(restored)
+            print(
+                f"[retale] resuming: chapters 1-{restored_indices[-1]} restored from checkpoint",
+                file=sys.stderr,
+            )
         for ch in plan.chapters:
-            prose = self._write_chapter(plan, ch, outline)
+            if ch.index in restored:
+                prose = restored[ch.index]
+            else:
+                prose = self._write_chapter(plan, ch, outline)
+                if progress_path is not None:
+                    checkpoint_chapters[str(ch.index)] = prose
+                    self._write_progress(progress_path, fingerprint, checkpoint_chapters)
             parts.append(prose.strip() + "\n")
             if on_chapter:
                 on_chapter(ch, prose)
+        if progress_path is not None and progress_path.exists():
+            progress_path.unlink()
         return "\n".join(parts)
 
     def build_codex(self, plan: StoryPlan) -> dict[str, Any]:
@@ -346,6 +416,46 @@ class Styler:
     @staticmethod
     def _empty_codex() -> dict[str, Any]:
         return {"heroes": {}, "protagonist_intro": "", "skills": {}, "factions": {}}
+
+    def _fingerprint(self, plan: StoryPlan, codex: dict[str, Any]) -> str:
+        payload = {
+            "match_id": plan.context.world.get("match_id"),
+            "style": self.style.name,
+            "model": getattr(self.client, "model", ""),
+            "codex": codex,
+        }
+        return sha256(
+            json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")
+        ).hexdigest()
+
+    @staticmethod
+    def _load_progress(progress_path: Path | None, fingerprint: str) -> dict[int, str]:
+        if progress_path is None or not progress_path.exists():
+            return {}
+        try:
+            payload = json.loads(progress_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return {}
+        if payload.get("fingerprint") != fingerprint:
+            return {}
+        chapters = payload.get("chapters", {})
+        if not isinstance(chapters, dict):
+            return {}
+        restored: dict[int, str] = {}
+        for index, text in chapters.items():
+            if str(index).isdigit() and isinstance(text, str):
+                restored[int(index)] = text
+        return restored
+
+    @staticmethod
+    def _write_progress(progress_path: Path, fingerprint: str, chapters: dict[str, str]) -> None:
+        progress_path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = progress_path.with_name(progress_path.name + ".tmp")
+        temp_path.write_text(
+            json.dumps({"fingerprint": fingerprint, "chapters": chapters}, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        temp_path.replace(progress_path)
 
     @staticmethod
     def _title(plan: StoryPlan) -> str:

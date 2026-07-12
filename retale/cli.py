@@ -49,6 +49,8 @@ def main(argv: list[str] | None = None) -> int:
                    help="load or save terminology codex JSON")
     p.add_argument("--model", default=None,
                    help="override the configured LLM model name")
+    p.add_argument("--fresh", action="store_true",
+                   help="discard any existing chapter checkpoint before generation")
     p.add_argument("--chapters", type=int, default=5,
                    help="target chapter count (auto-adjusted by density)")
     p.add_argument("-o", "--output", default=None, help="output .md path")
@@ -75,11 +77,14 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     out = _output_path(args.game, result.context.world.get("match_id", "story"), args.output, args.format)
+    progress_path = out.with_suffix(".progress.json")
     style = StyleProfile.load(args.style, sample_path=args.style_sample)
     if args.model:
         styler = Styler(style, client=LLMClient(model_override=args.model))
     else:
         styler = Styler(style)
+    if args.fresh and progress_path.exists():
+        progress_path.unlink()
     codex_path = _codex_path(out, args.codex)
     if codex_path.exists():
         codex = json.loads(codex_path.read_text(encoding="utf-8"))
@@ -107,7 +112,7 @@ def main(argv: list[str] | None = None) -> int:
 
         callback = epub_callback
 
-    story = styler.write_story(plan, on_chapter=callback, codex=codex)
+    story = styler.write_story(plan, on_chapter=callback, codex=codex, progress_path=progress_path)
     if args.format == "epub":
         write_epub(
             title=_story_title(result),

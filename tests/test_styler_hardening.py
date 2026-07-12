@@ -89,7 +89,7 @@ def test_openai_compatible_http_error_includes_body(monkeypatch):
     client.provider = "openai_compatible"
 
     with pytest.raises(RuntimeError) as exc_info:
-        client._openai_compatible("system", "user", 4000)
+        client.complete("system", "user", 4000)
 
     message = str(exc_info.value)
     assert "404" in message
