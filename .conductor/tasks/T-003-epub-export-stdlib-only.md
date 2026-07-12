@@ -1,7 +1,7 @@
 ---
 id: T-003
 title: EPUB export (stdlib-only)
-status: todo
+status: done
 priority: 3
 depends: []
 ---

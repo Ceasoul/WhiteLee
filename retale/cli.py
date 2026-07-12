@@ -12,10 +12,12 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from typing import Callable
 
-from retale.adapters.base import GameAdapter
-from retale.narrative.planner import Planner
+from retale.adapters.base import ExtractionResult, GameAdapter
+from retale.narrative.planner import Chapter, Planner
 from retale.narrative.styler import StyleProfile, Styler, export_json
+from retale.output import write_epub
 
 
 def _adapters() -> dict[str, type[GameAdapter]]:
@@ -45,6 +47,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--chapters", type=int, default=5,
                    help="target chapter count (auto-adjusted by density)")
     p.add_argument("-o", "--output", default=None, help="output .md path")
+    p.add_argument("--format", choices=("md", "epub"), default="md",
+                   help="output format")
     p.add_argument("--dry-run", action="store_true",
                    help="print the chapter plan as JSON, skip LLM generation")
     args = p.parse_args(argv)
@@ -68,16 +72,60 @@ def main(argv: list[str] | None = None) -> int:
     style = StyleProfile.load(args.style, sample_path=args.style_sample)
     styler = Styler(style)
 
-    def progress(ch, _prose):
+    def progress(ch: Chapter, _prose: str) -> None:
         print(f"[retale] chapter {ch.index}/{len(plan.chapters)} written "
               f"[{ch.arc_role}]", file=sys.stderr)
 
-    story = styler.write_story(plan, on_chapter=progress)
-    out = Path(args.output) if args.output else Path(
-        f"retale_{args.game}_{result.context.world.get('match_id', 'story')}.md")
-    out.write_text(story, encoding="utf-8")
+    chapter_exports: list[tuple[str, str]] = []
+
+    def collect_chapter(_ch: Chapter, prose: str) -> None:
+        chapter_exports.append(_chapter_export(prose))
+
+    callback: Callable[[Chapter, str], None] | None = progress
+    if args.format == "epub":
+        def epub_callback(ch: Chapter, prose: str) -> None:
+            progress(ch, prose)
+            collect_chapter(ch, prose)
+
+        callback = epub_callback
+
+    story = styler.write_story(plan, on_chapter=callback)
+    out = _output_path(args.game, result.context.world.get("match_id", "story"), args.output, args.format)
+    if args.format == "epub":
+        write_epub(
+            title=_story_title(result),
+            author=result.context.protagonist.name,
+            chapters=chapter_exports,
+            out_path=out,
+        )
+    else:
+        out.write_text(story, encoding="utf-8")
     print(f"[retale] story written to {out}", file=sys.stderr)
     return 0
+
+
+def _story_title(result: ExtractionResult) -> str:
+    return f"{result.context.protagonist.persona or result.context.protagonist.name} - a {result.context.game} tale"
+
+
+def _output_path(game: str, match_id: object, output: str | None, format_name: str) -> Path:
+    suffix = ".epub" if format_name == "epub" else ".md"
+    if output:
+        return Path(output).with_suffix(suffix)
+    return Path(f"retale_{game}_{match_id or 'story'}{suffix}")
+
+
+def _chapter_export(prose: str) -> tuple[str, str]:
+    stripped = prose.strip()
+    if not stripped:
+        return "Untitled Chapter", ""
+    lines = stripped.splitlines()
+    first_line = lines[0].strip()
+    if first_line.startswith("## "):
+        title = first_line[3:].strip() or "Untitled Chapter"
+        body = "\n".join(lines[1:]).strip()
+        return title, body
+    return "Untitled Chapter", stripped
 
 
 if __name__ == "__main__":
