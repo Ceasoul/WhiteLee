@@ -8,10 +8,10 @@ from pathlib import Path
 
 import pytest
 
-from retale.cli import main
-from retale.core.schema import EventKind, MatchContext, NarrativeEvent, Protagonist
-from retale.narrative.planner import Chapter, StoryPlan
-from retale.narrative.styler import Completion, LLMClient, StyleProfile, Styler
+from whitelee.cli import main
+from whitelee.core.schema import EventKind, MatchContext, NarrativeEvent, Protagonist
+from whitelee.narrative.planner import Chapter, StoryPlan
+from whitelee.narrative.styler import Completion, LLMClient, StyleProfile, Styler
 
 
 def _sample_plan(chapter_count: int = 3) -> StoryPlan:
@@ -70,7 +70,7 @@ def test_complete_retries_429_with_server_hint(monkeypatch):
     ]
     waits: list[float] = []
 
-    monkeypatch.setattr("retale.narrative.styler.requests.post", lambda *args, **kwargs: responses.pop(0))
+    monkeypatch.setattr("whitelee.narrative.styler.requests.post", lambda *args, **kwargs: responses.pop(0))
     client = LLMClient(model_override="test-model", sleep_fn=waits.append)
     client.provider = "openai_compatible"
 
@@ -84,7 +84,7 @@ def test_complete_retries_three_times_then_raises(monkeypatch):
     waits: list[float] = []
     responses = [FakeHTTPResponse(429, '{"error":"quota hit"}') for _ in range(4)]
 
-    monkeypatch.setattr("retale.narrative.styler.requests.post", lambda *args, **kwargs: responses.pop(0))
+    monkeypatch.setattr("whitelee.narrative.styler.requests.post", lambda *args, **kwargs: responses.pop(0))
     client = LLMClient(model_override="test-model", sleep_fn=waits.append)
     client.provider = "openai_compatible"
 
@@ -99,7 +99,7 @@ def test_complete_does_not_retry_non_transient_400(monkeypatch):
     waits: list[float] = []
 
     monkeypatch.setattr(
-        "retale.narrative.styler.requests.post",
+        "whitelee.narrative.styler.requests.post",
         lambda *args, **kwargs: FakeHTTPResponse(400, '{"error":"bad request"}'),
     )
     client = LLMClient(model_override="test-model", sleep_fn=waits.append)
@@ -263,10 +263,10 @@ def test_cli_fresh_removes_existing_checkpoint(monkeypatch, tmp_path: Path):
             captured["progress_existed_at_call"] = progress_path.exists() if progress_path else None
             return "## Title\n\nBody"
 
-    monkeypatch.setattr("retale.cli._adapters", lambda: {"dota2": FakeAdapter})
-    monkeypatch.setattr("retale.cli.Planner", FakePlanner)
-    monkeypatch.setattr("retale.cli.StyleProfile.load", lambda *args, **kwargs: StyleProfile(name="test"))
-    monkeypatch.setattr("retale.cli.Styler", FakeStyler)
+    monkeypatch.setattr("whitelee.cli._adapters", lambda: {"dota2": FakeAdapter})
+    monkeypatch.setattr("whitelee.cli.Planner", FakePlanner)
+    monkeypatch.setattr("whitelee.cli.StyleProfile.load", lambda *args, **kwargs: StyleProfile(name="test"))
+    monkeypatch.setattr("whitelee.cli.Styler", FakeStyler)
 
     out_path = tmp_path / "story.md"
     progress_path = out_path.with_suffix(".progress.json")

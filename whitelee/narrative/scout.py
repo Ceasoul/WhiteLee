@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from retale.core.schema import EventKind, MatchContext, NarrativeEvent
+from whitelee.core.schema import EventKind, MatchContext, NarrativeEvent
 
 WEIGHTS = {
     "nemesis_arc_full": 20,

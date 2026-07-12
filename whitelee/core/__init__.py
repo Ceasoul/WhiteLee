@@ -1,8 +1,8 @@
-"""ReTale core schema.
+"""WhiteLee core schema.
 
 Every game adapter must emit a stream of NarrativeEvent objects plus a
 MatchContext. The narrative engine only ever sees these two types, which
-is what makes ReTale game-agnostic: adding a new game means writing one
+is what makes WhiteLee game-agnostic: adding a new game means writing one
 adapter, never touching the narrative layer.
 """
 

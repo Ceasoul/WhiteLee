@@ -2,9 +2,9 @@
 
 Providers are pluggable via env vars (no SDK dependencies, plain HTTPS):
 
-  RETALE_PROVIDER=anthropic   (default)  needs ANTHROPIC_API_KEY
-  RETALE_PROVIDER=openai                 needs OPENAI_API_KEY
-  RETALE_PROVIDER=openai_compatible      needs RETALE_BASE_URL + RETALE_API_KEY
+  WHITELEE_PROVIDER=anthropic   (default)  needs ANTHROPIC_API_KEY
+  WHITELEE_PROVIDER=openai                 needs OPENAI_API_KEY
+  WHITELEE_PROVIDER=openai_compatible      needs WHITELEE_BASE_URL + WHITELEE_API_KEY
                                          (works with Ollama, vLLM, DeepSeek...)
 
 Style profiles are YAML files in styles/. A profile controls voice,
@@ -28,7 +28,7 @@ from typing import Any
 import requests
 import yaml
 
-from retale.narrative.planner import Chapter, StoryPlan
+from whitelee.narrative.planner import Chapter, StoryPlan
 
 STYLES_DIR = Path(__file__).resolve().parent.parent.parent / "styles"
 
@@ -90,8 +90,8 @@ class HTTPFailure(Exception):
 
 class LLMClient:
     def __init__(self, model_override: str | None = None, sleep_fn=None):
-        self.provider = os.environ.get("RETALE_PROVIDER", "anthropic")
-        self.model = model_override or os.environ.get("RETALE_MODEL", "")
+        self.provider = os.environ.get("WHITELEE_PROVIDER", "anthropic")
+        self.model = model_override or os.environ.get("WHITELEE_MODEL", "")
         self._sleep = sleep_fn or time.sleep
 
     def complete(self, system: str, user: str, max_tokens: int = 2000) -> Completion:
@@ -107,7 +107,7 @@ class LLMClient:
                     raise error.as_runtime_error()
                 wait_seconds = self._retry_wait_seconds(error, default_waits[attempt])
                 print(
-                    f"[retale] retry {attempt + 1}/3 after HTTP {error.status_code}; waiting {wait_seconds}s",
+                    f"[whitelee] retry {attempt + 1}/3 after HTTP {error.status_code}; waiting {wait_seconds}s",
                     file=sys.stderr,
                 )
                 self._sleep(wait_seconds)
@@ -116,7 +116,7 @@ class LLMClient:
     def _anthropic(self, system: str, user: str, max_tokens: int) -> Completion:
         key = os.environ.get("ANTHROPIC_API_KEY")
         if not key:
-            raise EnvironmentError("Set ANTHROPIC_API_KEY (or switch RETALE_PROVIDER).")
+            raise EnvironmentError("Set ANTHROPIC_API_KEY (or switch WHITELEE_PROVIDER).")
         resp = requests.post(
             "https://api.anthropic.com/v1/messages",
             headers={"x-api-key": key, "anthropic-version": "2023-06-01",
@@ -147,8 +147,8 @@ class LLMClient:
             key = os.environ.get("OPENAI_API_KEY", "")
             model = self.model or "gpt-4o"
         else:
-            base = os.environ.get("RETALE_BASE_URL", "http://localhost:11434/v1")
-            key = os.environ.get("RETALE_API_KEY", "ollama")
+            base = os.environ.get("WHITELEE_BASE_URL", "http://localhost:11434/v1")
+            key = os.environ.get("WHITELEE_API_KEY", "ollama")
             model = self.model or "llama3.1"
         payload = {
             "model": model,
@@ -158,7 +158,7 @@ class LLMClient:
                 {"role": "user", "content": user},
             ],
         }
-        reasoning_effort = os.environ.get("RETALE_REASONING_EFFORT")
+        reasoning_effort = os.environ.get("WHITELEE_REASONING_EFFORT")
         if reasoning_effort:
             payload["reasoning_effort"] = reasoning_effort
         resp = requests.post(
@@ -222,7 +222,7 @@ class Styler:
         if restored:
             restored_indices = sorted(restored)
             print(
-                f"[retale] resuming: chapters 1-{restored_indices[-1]} restored from checkpoint",
+                f"[whitelee] resuming: chapters 1-{restored_indices[-1]} restored from checkpoint",
                 file=sys.stderr,
             )
         for ch in plan.chapters:
@@ -252,7 +252,7 @@ class Styler:
             if parsed is not None:
                 return parsed
         print(
-            "[retale] warning: failed to parse terminology codex JSON; continuing with an empty codex.",
+            "[whitelee] warning: failed to parse terminology codex JSON; continuing with an empty codex.",
             file=sys.stderr,
         )
         return self._empty_codex()

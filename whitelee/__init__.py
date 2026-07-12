@@ -1,10 +1,10 @@
-"""ReTale command line.
+"""WhiteLee command line.
 
 Examples:
-  retale dota2 8123456789 --style wuxia -o saga.md
-  retale dota2 match.json --pov "MyNick" --style hardboiled
-  retale cs2 demo.dem --pov s1mple --style adventure --dry-run
-  retale dota2 8123456789 --style adventure --style-sample my_writing.txt
+  whitelee dota2 8123456789 --style wuxia -o saga.md
+  whitelee dota2 match.json --pov "MyNick" --style hardboiled
+  whitelee cs2 demo.dem --pov s1mple --style adventure --dry-run
+  whitelee dota2 8123456789 --style adventure --style-sample my_writing.txt
 """
 
 from __future__ import annotations
@@ -15,18 +15,18 @@ import sys
 from pathlib import Path
 from typing import Callable
 
-from retale.adapters.base import ExtractionResult, GameAdapter
-from retale.narrative.scout import render_report, scout
-from retale.narrative.planner import Chapter, Planner
-from retale.narrative.styler import LLMClient, StyleProfile, Styler, export_json
-from retale.output import write_epub
+from whitelee.adapters.base import ExtractionResult, GameAdapter
+from whitelee.narrative.scout import render_report, scout
+from whitelee.narrative.planner import Chapter, Planner
+from whitelee.narrative.styler import LLMClient, StyleProfile, Styler, export_json
+from whitelee.output import write_epub
 
 
 def _adapters() -> dict[str, type[GameAdapter]]:
-    from retale.adapters.dota2_opendota import Dota2OpenDotaAdapter
+    from whitelee.adapters.dota2_opendota import Dota2OpenDotaAdapter
     reg: dict[str, type[GameAdapter]] = {"dota2": Dota2OpenDotaAdapter}
     try:
-        from retale.adapters.cs2_demo import CS2DemoAdapter
+        from whitelee.adapters.cs2_demo import CS2DemoAdapter
         reg["cs2"] = CS2DemoAdapter
     except ImportError:
         pass
@@ -36,7 +36,7 @@ def _adapters() -> dict[str, type[GameAdapter]]:
 def main(argv: list[str] | None = None) -> int:
     reg = _adapters()
     p = argparse.ArgumentParser(
-        prog="retale",
+        prog="whitelee",
         description="Turn your gameplay into literature.")
     p.add_argument("game", choices=sorted(reg), help="game adapter")
     p.add_argument("source", help="match id / replay file / saved JSON")
@@ -64,9 +64,9 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
 
     adapter = reg[args.game]()
-    print(f"[retale] extracting events from {args.source} ...", file=sys.stderr)
+    print(f"[whitelee] extracting events from {args.source} ...", file=sys.stderr)
     result = adapter.extract(args.source, protagonist_hint=args.pov)
-    print(f"[retale] {len(result.events)} events | protagonist: "
+    print(f"[whitelee] {len(result.events)} events | protagonist: "
           f"{result.context.protagonist.name} "
           f"({result.context.protagonist.persona}) | "
           f"outcome: {result.context.outcome}", file=sys.stderr)
@@ -76,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     plan = Planner(target_chapters=args.chapters).plan(result.context, result.events)
-    print(f"[retale] planned {len(plan.chapters)} chapters | {plan.logline}",
+    print(f"[whitelee] planned {len(plan.chapters)} chapters | {plan.logline}",
           file=sys.stderr)
 
     if args.dry_run:
@@ -103,7 +103,7 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     def progress(ch: Chapter, _prose: str) -> None:
-        print(f"[retale] chapter {ch.index}/{len(plan.chapters)} written "
+        print(f"[whitelee] chapter {ch.index}/{len(plan.chapters)} written "
               f"[{ch.arc_role}]", file=sys.stderr)
 
     chapter_exports: list[tuple[str, str]] = []
@@ -129,7 +129,7 @@ def main(argv: list[str] | None = None) -> int:
         )
     else:
         out.write_text(story, encoding="utf-8")
-    print(f"[retale] story written to {out}", file=sys.stderr)
+    print(f"[whitelee] story written to {out}", file=sys.stderr)
     return 0
 
 
@@ -141,7 +141,7 @@ def _output_path(game: str, match_id: object, output: str | None, format_name: s
     suffix = ".epub" if format_name == "epub" else ".md"
     if output:
         return Path(output).with_suffix(suffix)
-    return Path(f"retale_{game}_{match_id or 'story'}{suffix}")
+    return Path(f"whitelee_{game}_{match_id or 'story'}{suffix}")
 
 
 def _codex_path(output_path: Path, codex_arg: str | None) -> Path:

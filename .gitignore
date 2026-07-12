@@ -6,5 +6,5 @@ build/
 .venv/
 .pytest_cache/
 .ruff_cache/
-retale_*.md
+whitelee_*.md
 *.dem

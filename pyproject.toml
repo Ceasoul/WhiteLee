@@ -3,14 +3,14 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "retale"
+name = "whitelee"
 version = "0.1.0"
 description = "Turn your gameplay into literature - a game-session-to-novel engine"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
-authors = [{ name = "ReTale contributors" }]
-keywords = ["games", "narrative", "llm", "dota2", "cs2", "storytelling"]
+authors = [{ name = "WhiteLee contributors" }]
+keywords = ["games", "narrative", "llm", "dota2", "cs2", "storytelling", "whitelee"]
 dependencies = [
   "requests>=2.28",
   "pyyaml>=6.0",
@@ -21,10 +21,10 @@ cs2 = ["demoparser2>=0.30", "pandas>=2.0"]
 dev = ["pytest>=8.0", "ruff>=0.4"]
 
 [project.scripts]
-retale = "retale.cli:main"
+whitelee = "whitelee.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["retale"]
+packages = ["whitelee"]
 
 [tool.ruff]
 line-length = 100

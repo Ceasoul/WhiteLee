@@ -1,4 +1,4 @@
-# ReTale Roadmap
+# WhiteLee Roadmap
 
 Guiding principle: every game falls into one of four **extraction tiers**.
 The narrative engine is shared; only extraction differs.
@@ -47,7 +47,7 @@ The narrative engine is shared; only extraction differs.
 - [ ] Real-time mode: incremental "war correspondent" drafts during play,
       re-woven into proper retrospective chapters after the session
 - [ ] D&D / tabletop: VTT logs (Foundry/Roll20) and voice-transcript
-      ingestion — the session *is already a story*; ReTale becomes the
+      ingestion — the session *is already a story*; WhiteLee becomes the
       chronicler
 - [ ] Multi-protagonist braided narratives (same match, five POVs,
       Rashomon mode)

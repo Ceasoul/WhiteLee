@@ -6,10 +6,10 @@ import importlib
 import inspect
 from pathlib import Path
 
-from retale.adapters.dota2_opendota import Dota2OpenDotaAdapter
-from retale.cli import main
-from retale.core.schema import EventKind, MatchContext, NarrativeEvent, Protagonist
-from retale.narrative.scout import render_report, scout
+from whitelee.adapters.dota2_opendota import Dota2OpenDotaAdapter
+from whitelee.cli import main
+from whitelee.core.schema import EventKind, MatchContext, NarrativeEvent, Protagonist
+from whitelee.narrative.scout import render_report, scout
 
 FIXTURE = Path(__file__).parent / "fixtures" / "dota2_match.json"
 
@@ -257,11 +257,11 @@ def test_scout_clutch_uses_buyback_beat_tag():
 
 
 def test_scout_module_stays_adapter_free():
-    scout_module = importlib.import_module("retale.narrative.scout")
+    scout_module = importlib.import_module("whitelee.narrative.scout")
     source_path = Path(inspect.getsourcefile(scout_module) or "")
     source = source_path.read_text(encoding="utf-8")
 
-    assert "retale.adapters" not in source
+    assert "whitelee.adapters" not in source
 
 
 def test_cli_scout_prints_report_without_llm(monkeypatch, capsys):
@@ -286,9 +286,9 @@ def test_cli_scout_prints_report_without_llm(monkeypatch, capsys):
             self.client.complete("", "", 0)
             return ""
 
-    monkeypatch.setattr("retale.cli._adapters", lambda: {"dota2": FakeAdapter})
-    monkeypatch.setattr("retale.cli.LLMClient", lambda model_override=None: RaisingClient())
-    monkeypatch.setattr("retale.cli.Styler", FakeStyler)
+    monkeypatch.setattr("whitelee.cli._adapters", lambda: {"dota2": FakeAdapter})
+    monkeypatch.setattr("whitelee.cli.LLMClient", lambda model_override=None: RaisingClient())
+    monkeypatch.setattr("whitelee.cli.Styler", FakeStyler)
 
     exit_code = main(["dota2", str(FIXTURE), "--scout"])
     captured = capsys.readouterr()

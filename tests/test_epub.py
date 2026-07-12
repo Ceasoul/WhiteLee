@@ -6,10 +6,10 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from retale.adapters.base import ExtractionResult
-from retale.cli import main
-from retale.core.schema import EventKind, MatchContext, NarrativeEvent, Protagonist
-from retale.output.epub import write_epub
+from whitelee.adapters.base import ExtractionResult
+from whitelee.cli import main
+from whitelee.core.schema import EventKind, MatchContext, NarrativeEvent, Protagonist
+from whitelee.output.epub import write_epub
 
 
 def test_write_epub_builds_valid_archive(tmp_path: Path):
@@ -114,10 +114,10 @@ def test_cli_writes_epub_via_chapter_callback(monkeypatch, tmp_path: Path):
                     on_chapter(chapter, prose)
             return "\n\n".join(parts)
 
-    monkeypatch.setattr("retale.cli._adapters", lambda: {"dota2": FakeAdapter})
-    monkeypatch.setattr("retale.cli.Planner", FakePlanner)
-    monkeypatch.setattr("retale.cli.StyleProfile.load", lambda *args, **kwargs: FakeStyle())
-    monkeypatch.setattr("retale.cli.Styler", FakeStyler)
+    monkeypatch.setattr("whitelee.cli._adapters", lambda: {"dota2": FakeAdapter})
+    monkeypatch.setattr("whitelee.cli.Planner", FakePlanner)
+    monkeypatch.setattr("whitelee.cli.StyleProfile.load", lambda *args, **kwargs: FakeStyle())
+    monkeypatch.setattr("whitelee.cli.Styler", FakeStyler)
 
     out_path = tmp_path / "story.md"
     exit_code = main(["dota2", "fake.json", "--format", "epub", "-o", str(out_path)])

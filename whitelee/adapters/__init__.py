@@ -1,7 +1,7 @@
 """Dota 2 adapter backed by the OpenDota API.
 
 Zero local parsing: give it a match id, it fetches the fully parsed
-match JSON from https://api.opendota.com and maps it onto the ReTale
+match JSON from https://api.opendota.com and maps it onto the WhiteLee
 event schema.
 
 Note: a match must have been parsed by OpenDota for rich fields
@@ -18,8 +18,8 @@ from typing import Any
 
 import requests
 
-from retale.adapters.base import ExtractionResult, GameAdapter
-from retale.core.schema import (
+from whitelee.adapters.base import ExtractionResult, GameAdapter
+from whitelee.core.schema import (
     EventKind,
     MatchContext,
     NarrativeEvent,
@@ -117,7 +117,7 @@ class Dota2OpenDotaAdapter(GameAdapter):
         if not parsed:
             match_id = match.get("match_id", "unknown")
             print(
-                "[retale] warning: this match has no parsed replay data; stories will be skeletal. "
+                "[whitelee] warning: this match has no parsed replay data; stories will be skeletal. "
                 "Use a recent match (replays expire) and request parsing at "
                 f"https://www.opendota.com/matches/{match_id}.",
                 file=sys.stderr,

@@ -1,10 +1,10 @@
 """CS2 adapter: parses local .dem files with demoparser2.
 
-demoparser2 is an optional dependency:  pip install retale[cs2]
+demoparser2 is an optional dependency:  pip install whitelee[cs2]
 
 Design: we query only the events that carry narrative weight
 (round transitions, kills, bomb plants/defuses, clutch situations) and
-map them onto the ReTale schema. Ticks are converted to seconds at
+map them onto the WhiteLee schema. Ticks are converted to seconds at
 64 tick/s.
 """
 
@@ -12,8 +12,8 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from retale.adapters.base import ExtractionResult, GameAdapter
-from retale.core.schema import (
+from whitelee.adapters.base import ExtractionResult, GameAdapter
+from whitelee.core.schema import (
     EventKind,
     MatchContext,
     NarrativeEvent,
@@ -31,7 +31,7 @@ class CS2DemoAdapter(GameAdapter):
             from demoparser2 import DemoParser  # type: ignore
         except ImportError as exc:  # pragma: no cover
             raise ImportError(
-                "CS2 support requires demoparser2. Install with: pip install retale[cs2]"
+                "CS2 support requires demoparser2. Install with: pip install whitelee[cs2]"
             ) from exc
 
         parser = DemoParser(source)

@@ -5,10 +5,10 @@ from pathlib import Path
 
 import pytest
 
-from retale.adapters.dota2_opendota import Dota2OpenDotaAdapter
-from retale.core.schema import EventKind
-from retale.narrative.planner import Planner
-from retale.narrative.styler import Completion, StyleProfile, Styler, export_json
+from whitelee.adapters.dota2_opendota import Dota2OpenDotaAdapter
+from whitelee.core.schema import EventKind
+from whitelee.narrative.planner import Planner
+from whitelee.narrative.styler import Completion, StyleProfile, Styler, export_json
 
 FIXTURE = Path(__file__).parent / "fixtures" / "dota2_match.json"
 UNPARSED_FIXTURE = Path(__file__).parent / "fixtures" / "dota2_match_unparsed.json"

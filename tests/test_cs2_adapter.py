@@ -6,8 +6,8 @@ import importlib
 import sys
 import types
 
-from retale.adapters.cs2_demo import CS2DemoAdapter
-from retale.core.schema import EventKind
+from whitelee.adapters.cs2_demo import CS2DemoAdapter
+from whitelee.core.schema import EventKind
 
 
 def _frame(rows: list[dict], columns: list[str] | None = None):
@@ -50,7 +50,7 @@ def _install_fake_demoparser(monkeypatch, header: dict, kills_rows: list[dict], 
 
 def test_cs2_module_imports_without_demoparser(monkeypatch):
     monkeypatch.delitem(sys.modules, "demoparser2", raising=False)
-    module = importlib.reload(importlib.import_module("retale.adapters.cs2_demo"))
+    module = importlib.reload(importlib.import_module("whitelee.adapters.cs2_demo"))
     assert module.CS2DemoAdapter.game_id == "cs2"
 
 

@@ -70,7 +70,7 @@ def _content_opf(title: str, author: str, chapters: list[tuple[str, str]]) -> st
         f"    <dc:title>{escape(title)}</dc:title>\n"
         f"    <dc:creator>{escape(author)}</dc:creator>\n"
         "    <dc:language>en</dc:language>\n"
-        "    <dc:identifier id=\"bookid\">retale-epub</dc:identifier>\n"
+        "    <dc:identifier id=\"bookid\">whitelee-epub</dc:identifier>\n"
         "  </metadata>\n"
         "  <manifest>\n"
         + "\n".join(manifest_items)
@@ -96,7 +96,7 @@ def _toc_ncx(title: str, chapters: list[tuple[str, str]]) -> str:
         '<?xml version="1.0" encoding="utf-8"?>\n'
         '<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">\n'
         "  <head>\n"
-        "    <meta name=\"dtb:uid\" content=\"retale-epub\"/>\n"
+        "    <meta name=\"dtb:uid\" content=\"whitelee-epub\"/>\n"
         "    <meta name=\"dtb:depth\" content=\"1\"/>\n"
         "    <meta name=\"dtb:totalPageCount\" content=\"0\"/>\n"
         "    <meta name=\"dtb:maxPageNumber\" content=\"0\"/>\n"

@@ -3,7 +3,7 @@
 Turns a flat event stream into a chapter plan with a dramatic arc.
 
 Why plan before writing: good fiction needs to know the ending to place
-foreshadowing and tension. So ReTale is retrospective by design - we
+foreshadowing and tension. So WhiteLee is retrospective by design - we
 segment the whole match into beats, find turning points (importance
 spikes and momentum reversals), then hand the LLM one chapter at a time
 WITH the global outline, so each chapter is written knowing its place
@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from retale.core.schema import EventKind, MatchContext, NarrativeEvent
+from whitelee.core.schema import EventKind, MatchContext, NarrativeEvent
 
 # Arc roles assigned to chapters by position + content
 ARC_ROLES = ["opening", "rising", "midpoint", "crisis", "climax", "resolution"]

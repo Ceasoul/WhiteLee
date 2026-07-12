@@ -6,10 +6,10 @@ from dataclasses import dataclass
 
 import pytest
 
-from retale.cli import main
-from retale.core.schema import EventKind, MatchContext, NarrativeEvent, Protagonist
-from retale.narrative.planner import Chapter, StoryPlan
-from retale.narrative.styler import Completion, LLMClient, StyleProfile, Styler
+from whitelee.cli import main
+from whitelee.core.schema import EventKind, MatchContext, NarrativeEvent, Protagonist
+from whitelee.narrative.planner import Chapter, StoryPlan
+from whitelee.narrative.styler import Completion, LLMClient, StyleProfile, Styler
 
 
 def _sample_plan() -> StoryPlan:
@@ -84,7 +84,7 @@ def test_openai_compatible_http_error_includes_body(monkeypatch):
         def json(self):
             return {}
 
-    monkeypatch.setattr("retale.narrative.styler.requests.post", lambda *args, **kwargs: FakeResponse())
+    monkeypatch.setattr("whitelee.narrative.styler.requests.post", lambda *args, **kwargs: FakeResponse())
     client = LLMClient(model_override="missing-model")
     client.provider = "openai_compatible"
 
@@ -118,8 +118,8 @@ def test_openai_compatible_passes_reasoning_effort(monkeypatch):
         captured_json.update(kwargs["json"])
         return FakeResponse()
 
-    monkeypatch.setenv("RETALE_REASONING_EFFORT", "low")
-    monkeypatch.setattr("retale.narrative.styler.requests.post", fake_post)
+    monkeypatch.setenv("WHITELEE_REASONING_EFFORT", "low")
+    monkeypatch.setattr("whitelee.narrative.styler.requests.post", fake_post)
     client = LLMClient(model_override="test-model")
     client.provider = "openai_compatible"
     result = client._openai_compatible("system", "user", 4000)
@@ -176,10 +176,10 @@ def test_cli_model_flag_reaches_llm_client(monkeypatch, tmp_path):
         def complete(self, system: str, user: str, max_tokens: int = 0) -> Completion:
             return Completion(text="## Title\n\nBody", finish_reason="stop")
 
-    monkeypatch.setattr("retale.cli._adapters", lambda: {"dota2": FakeAdapter})
-    monkeypatch.setattr("retale.cli.Planner", FakePlanner)
-    monkeypatch.setattr("retale.cli.StyleProfile.load", lambda *args, **kwargs: StyleProfile(name="test"))
-    monkeypatch.setattr("retale.cli.LLMClient", FakeClient)
+    monkeypatch.setattr("whitelee.cli._adapters", lambda: {"dota2": FakeAdapter})
+    monkeypatch.setattr("whitelee.cli.Planner", FakePlanner)
+    monkeypatch.setattr("whitelee.cli.StyleProfile.load", lambda *args, **kwargs: StyleProfile(name="test"))
+    monkeypatch.setattr("whitelee.cli.LLMClient", FakeClient)
 
     out_path = tmp_path / "story.md"
     exit_code = main(["dota2", "fake.json", "--model", "gemini-test", "-o", str(out_path)])

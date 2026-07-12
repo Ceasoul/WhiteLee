@@ -16,7 +16,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from retale.core.schema import MatchContext, NarrativeEvent
+from whitelee.core.schema import MatchContext, NarrativeEvent
 
 
 @dataclass

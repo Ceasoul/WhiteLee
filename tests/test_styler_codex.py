@@ -6,10 +6,10 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from retale.cli import main
-from retale.core.schema import EventKind, MatchContext, NarrativeEvent, Protagonist
-from retale.narrative.planner import Chapter, StoryPlan
-from retale.narrative.styler import Completion, StyleProfile, Styler
+from whitelee.cli import main
+from whitelee.core.schema import EventKind, MatchContext, NarrativeEvent, Protagonist
+from whitelee.narrative.planner import Chapter, StoryPlan
+from whitelee.narrative.styler import Completion, StyleProfile, Styler
 
 
 def _two_chapter_plan() -> StoryPlan:
@@ -183,10 +183,10 @@ def test_cli_codex_existing_file_skips_generation_and_missing_file_writes(monkey
                 on_chapter(plan.chapters[0], prose)
             return prose
 
-    monkeypatch.setattr("retale.cli._adapters", lambda: {"dota2": FakeAdapter})
-    monkeypatch.setattr("retale.cli.Planner", FakePlanner)
-    monkeypatch.setattr("retale.cli.StyleProfile.load", lambda *args, **kwargs: StyleProfile(name="test"))
-    monkeypatch.setattr("retale.cli.Styler", FakeStyler)
+    monkeypatch.setattr("whitelee.cli._adapters", lambda: {"dota2": FakeAdapter})
+    monkeypatch.setattr("whitelee.cli.Planner", FakePlanner)
+    monkeypatch.setattr("whitelee.cli.StyleProfile.load", lambda *args, **kwargs: StyleProfile(name="test"))
+    monkeypatch.setattr("whitelee.cli.Styler", FakeStyler)
 
     existing_codex = tmp_path / "existing.codex.json"
     existing_codex.write_text(
