@@ -58,21 +58,27 @@ class StyleProfile:
                    words_per_chapter=int(data.get("words_per_chapter", 600)))
 
 
+@dataclass
+class Completion:
+    text: str
+    finish_reason: str = "stop"
+
+
 # ---------------------------------------------------------------------------
 # LLM providers
 # ---------------------------------------------------------------------------
 
 class LLMClient:
-    def __init__(self):
+    def __init__(self, model_override: str | None = None):
         self.provider = os.environ.get("RETALE_PROVIDER", "anthropic")
-        self.model = os.environ.get("RETALE_MODEL", "")
+        self.model = model_override or os.environ.get("RETALE_MODEL", "")
 
-    def complete(self, system: str, user: str, max_tokens: int = 2000) -> str:
+    def complete(self, system: str, user: str, max_tokens: int = 2000) -> Completion:
         if self.provider == "anthropic":
             return self._anthropic(system, user, max_tokens)
         return self._openai_compatible(system, user, max_tokens)
 
-    def _anthropic(self, system: str, user: str, max_tokens: int) -> str:
+    def _anthropic(self, system: str, user: str, max_tokens: int) -> Completion:
         key = os.environ.get("ANTHROPIC_API_KEY")
         if not key:
             raise EnvironmentError("Set ANTHROPIC_API_KEY (or switch RETALE_PROVIDER).")
@@ -85,10 +91,19 @@ class LLMClient:
                   "system": system,
                   "messages": [{"role": "user", "content": user}]},
             timeout=120)
-        resp.raise_for_status()
-        return "".join(b.get("text", "") for b in resp.json().get("content", []))
+        body = resp.text[:500]
+        if not resp.ok:
+            raise RuntimeError(
+                f"Anthropic HTTP {resp.status_code}: {body}"
+            )
+        payload = resp.json()
+        finish_reason = "length" if payload.get("stop_reason") == "max_tokens" else "stop"
+        return Completion(
+            text="".join(block.get("text", "") for block in payload.get("content", [])),
+            finish_reason=finish_reason,
+        )
 
-    def _openai_compatible(self, system: str, user: str, max_tokens: int) -> str:
+    def _openai_compatible(self, system: str, user: str, max_tokens: int) -> Completion:
         if self.provider == "openai":
             base = "https://api.openai.com/v1"
             key = os.environ.get("OPENAI_API_KEY", "")
@@ -97,16 +112,34 @@ class LLMClient:
             base = os.environ.get("RETALE_BASE_URL", "http://localhost:11434/v1")
             key = os.environ.get("RETALE_API_KEY", "ollama")
             model = self.model or "llama3.1"
+        payload = {
+            "model": model,
+            "max_tokens": max_tokens,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        }
+        reasoning_effort = os.environ.get("RETALE_REASONING_EFFORT")
+        if reasoning_effort:
+            payload["reasoning_effort"] = reasoning_effort
         resp = requests.post(
             f"{base}/chat/completions",
             headers={"Authorization": f"Bearer {key}",
                      "content-type": "application/json"},
-            json={"model": model, "max_tokens": max_tokens,
-                  "messages": [{"role": "system", "content": system},
-                               {"role": "user", "content": user}]},
+            json=payload,
             timeout=120)
-        resp.raise_for_status()
-        return resp.json()["choices"][0]["message"]["content"]
+        body = resp.text[:500]
+        if not resp.ok:
+            raise RuntimeError(
+                f"OpenAI-compatible HTTP {resp.status_code}: {body}"
+            )
+        data = resp.json()
+        choice = data["choices"][0]
+        return Completion(
+            text=choice["message"]["content"],
+            finish_reason=choice.get("finish_reason", "stop"),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -183,8 +216,36 @@ class Styler:
             + "\n\nOutput: a chapter title line starting with '## ', then the prose. "
               "Nothing else."
         )
-        return self.client.complete(self._system_prompt(), user,
-                                    max_tokens=self.style.words_per_chapter * 4)
+        max_tokens = max(self.style.words_per_chapter * 8, 4000)
+        first = self.client.complete(self._system_prompt(), user, max_tokens=max_tokens)
+        best = first
+        if first.finish_reason == "length":
+            second = self.client.complete(
+                self._system_prompt(), user, max_tokens=max_tokens * 2
+            )
+            if second.finish_reason != "length":
+                best = second
+            elif len(second.text) > len(first.text):
+                best = second
+        return self._sanitize_chapter(best.text, ch.index)
+
+    @staticmethod
+    def _sanitize_chapter(raw: str, index: int) -> str:
+        lines = [line for line in raw.splitlines() if not line.strip().startswith("```")]
+        title_index = next(
+            (line_index for line_index, line in enumerate(lines) if line.lstrip().startswith("## ")),
+            None,
+        )
+        if title_index is None:
+            body = "\n".join(line for line in lines if line.strip()).strip()
+            if body:
+                return f"## 第{index}章\n\n{body}"
+            return f"## 第{index}章"
+
+        kept_lines = lines[title_index:]
+        title = kept_lines[0].lstrip("#").strip()
+        kept_lines[0] = f"## {title}"
+        return "\n".join(kept_lines).strip()
 
     @staticmethod
     def _title(plan: StoryPlan) -> str:

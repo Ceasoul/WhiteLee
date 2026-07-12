@@ -16,7 +16,7 @@ from typing import Callable
 
 from retale.adapters.base import ExtractionResult, GameAdapter
 from retale.narrative.planner import Chapter, Planner
-from retale.narrative.styler import StyleProfile, Styler, export_json
+from retale.narrative.styler import LLMClient, StyleProfile, Styler, export_json
 from retale.output import write_epub
 
 
@@ -44,6 +44,8 @@ def main(argv: list[str] | None = None) -> int:
                    help="style profile name or path to a YAML")
     p.add_argument("--style-sample", default=None,
                    help="path to a text file whose voice the story imitates")
+    p.add_argument("--model", default=None,
+                   help="override the configured LLM model name")
     p.add_argument("--chapters", type=int, default=5,
                    help="target chapter count (auto-adjusted by density)")
     p.add_argument("-o", "--output", default=None, help="output .md path")
@@ -70,7 +72,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     style = StyleProfile.load(args.style, sample_path=args.style_sample)
-    styler = Styler(style)
+    if args.model:
+        styler = Styler(style, client=LLMClient(model_override=args.model))
+    else:
+        styler = Styler(style)
 
     def progress(ch: Chapter, _prose: str) -> None:
         print(f"[retale] chapter {ch.index}/{len(plan.chapters)} written "

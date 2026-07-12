@@ -8,7 +8,7 @@ import pytest
 from retale.adapters.dota2_opendota import Dota2OpenDotaAdapter
 from retale.core.schema import EventKind
 from retale.narrative.planner import Planner
-from retale.narrative.styler import StyleProfile, Styler, export_json
+from retale.narrative.styler import Completion, StyleProfile, Styler, export_json
 
 FIXTURE = Path(__file__).parent / "fixtures" / "dota2_match.json"
 UNPARSED_FIXTURE = Path(__file__).parent / "fixtures" / "dota2_match_unparsed.json"
@@ -194,7 +194,7 @@ class MockLLM:
     def complete(self, system, user, max_tokens=0):
         assert "NEVER invent outcomes" in system
         assert "CHAPTER" in user
-        return "## A Mock Chapter\n\nThe blade sang."
+        return Completion(text="## A Mock Chapter\n\nThe blade sang.", finish_reason="stop")
 
 
 def test_styler_assembles_story(extraction):
