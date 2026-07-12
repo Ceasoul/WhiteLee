@@ -57,7 +57,27 @@
      "time": 100,
      "key": "tango"
     }
-   ]
+   ],
+   "buyback_log": [
+    {
+     "time": 1535
+    }
+   ],
+   "runes_log": [
+    {
+     "time": 445,
+     "key": 1
+    },
+    {
+     "time": 820,
+     "key": 5
+    }
+   ],
+   "damage_inflictor": {
+    "slark_essence_shift": 5400,
+    "slark_dark_pact": 2100,
+    "item_black_king_bar": 0
+   }
   },
   {
    "player_slot": 1,
@@ -67,7 +87,8 @@
    "kills": 0,
    "assists": 0,
    "kills_log": [],
-   "purchase_log": []
+   "purchase_log": [],
+   "buyback_log": []
   },
   {
    "player_slot": 2,
@@ -77,7 +98,8 @@
    "kills": 0,
    "assists": 0,
    "kills_log": [],
-   "purchase_log": []
+   "purchase_log": [],
+   "buyback_log": []
   },
   {
    "player_slot": 3,
@@ -87,7 +109,8 @@
    "kills": 0,
    "assists": 0,
    "kills_log": [],
-   "purchase_log": []
+   "purchase_log": [],
+   "buyback_log": []
   },
   {
    "player_slot": 4,
@@ -97,7 +120,8 @@
    "kills": 0,
    "assists": 0,
    "kills_log": [],
-   "purchase_log": []
+   "purchase_log": [],
+   "buyback_log": []
   },
   {
    "player_slot": 128,
@@ -109,10 +133,15 @@
    "kills_log": [
     {
      "time": 980,
-     "key": "npc_dota_hero_juggernaut"
+    "key": "npc_dota_hero_slark"
     }
    ],
-   "purchase_log": []
+   "purchase_log": [],
+   "buyback_log": [
+    {
+     "time": 1548
+    }
+   ]
   },
   {
    "player_slot": 129,
@@ -124,14 +153,15 @@
    "kills_log": [
     {
      "time": 700,
-     "key": "npc_dota_hero_juggernaut"
+    "key": "npc_dota_hero_slark"
     },
     {
      "time": 1520,
-     "key": "npc_dota_hero_juggernaut"
+    "key": "npc_dota_hero_slark"
     }
    ],
-   "purchase_log": []
+   "purchase_log": [],
+   "buyback_log": []
   },
   {
    "player_slot": 130,
@@ -141,7 +171,8 @@
    "kills": 0,
    "assists": 0,
    "kills_log": [],
-   "purchase_log": []
+   "purchase_log": [],
+   "buyback_log": []
   },
   {
    "player_slot": 131,
@@ -151,7 +182,8 @@
    "kills": 0,
    "assists": 0,
    "kills_log": [],
-   "purchase_log": []
+   "purchase_log": [],
+   "buyback_log": []
   },
   {
    "player_slot": 132,
@@ -161,7 +193,8 @@
    "kills": 0,
    "assists": 0,
    "kills_log": [],
-   "purchase_log": []
+   "purchase_log": [],
+   "buyback_log": []
   }
  ],
  "chat": [
@@ -229,7 +262,7 @@
   {
    "time": 900,
    "type": "CHAT_MESSAGE_TOWER_KILL",
-   "unit": "npc_dota_hero_juggernaut",
+   "unit": "npc_dota_hero_slark",
    "key": "npc_dota_badguys_tower1_mid"
   },
   {
@@ -241,25 +274,25 @@
   {
    "time": 1610,
    "type": "CHAT_MESSAGE_AEGIS",
-   "unit": "npc_dota_hero_juggernaut",
+   "unit": "npc_dota_hero_slark",
    "key": ""
   },
   {
    "time": 1700,
    "type": "CHAT_MESSAGE_BARRACKS_KILL",
-   "unit": "npc_dota_hero_juggernaut",
+   "unit": "npc_dota_hero_slark",
    "key": "npc_dota_badguys_melee_rax_bot"
   },
   {
    "time": 2010,
    "type": "building_kill",
-   "unit": "npc_dota_hero_juggernaut",
+   "unit": "npc_dota_hero_slark",
    "key": "npc_dota_badguys_tower3_mid"
   },
   {
    "time": 2030,
    "type": "building_kill",
-   "unit": "npc_dota_hero_juggernaut",
+   "unit": "npc_dota_hero_slark",
    "key": "npc_dota_badguys_melee_rax_mid"
   },
   {
@@ -282,42 +315,67 @@
    "deaths": 4,
    "players": [
     {
+    "ability_uses": {
+     "slark_dark_pact": 2,
+     "slark_pounce": 1
+    },
+    "item_uses": {
+     "manta": 1
+    },
+    "deaths": 0,
+    "damage": 3100
+    },
+    {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 0,
      "damage": 900
     },
     {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 0,
      "damage": 900
     },
     {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 0,
      "damage": 900
     },
     {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 0,
      "damage": 900
     },
     {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 0,
      "damage": 900
     },
     {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 0,
      "damage": 900
     },
     {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 0,
      "damage": 900
     },
     {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 0,
      "damage": 900
     },
     {
-     "deaths": 0,
-     "damage": 900
-    },
-    {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 0,
      "damage": 900
     }
@@ -329,42 +387,67 @@
    "deaths": 5,
    "players": [
     {
+    "ability_uses": {
+     "slark_dark_pact": 1,
+     "slark_pounce": 1
+    },
+    "item_uses": {
+     "manta": 1
+    },
+     "deaths": 1,
+    "damage": 1700
+    },
+    {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 1,
      "damage": 1200
     },
     {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 1,
      "damage": 1200
     },
     {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 1,
      "damage": 1200
     },
     {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 1,
      "damage": 1200
     },
     {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 1,
      "damage": 1200
     },
     {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 1,
      "damage": 1200
     },
     {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 1,
      "damage": 1200
     },
     {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 1,
      "damage": 1200
     },
     {
-     "deaths": 1,
-     "damage": 1200
-    },
-    {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 1,
      "damage": 1200
     }
@@ -376,42 +459,68 @@
    "deaths": 6,
    "players": [
     {
+    "ability_uses": {
+     "slark_dark_pact": 3,
+     "slark_pounce": 2
+    },
+    "item_uses": {
+     "black_king_bar": 1,
+     "manta": 1
+    },
+     "deaths": 0,
+    "damage": 3300
+    },
+    {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 0,
      "damage": 2000
     },
     {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 0,
      "damage": 2000
     },
     {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 0,
      "damage": 2000
     },
     {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 0,
      "damage": 2000
     },
     {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 0,
      "damage": 2000
     },
     {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 0,
      "damage": 2000
     },
     {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 0,
      "damage": 2000
     },
     {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 0,
      "damage": 2000
     },
     {
-     "deaths": 0,
-     "damage": 2000
-    },
-    {
+    "ability_uses": {},
+    "item_uses": {},
      "deaths": 0,
      "damage": 2000
     }

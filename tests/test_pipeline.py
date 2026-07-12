@@ -14,7 +14,7 @@ FIXTURE = Path(__file__).parent / "fixtures" / "dota2_match.json"
 UNPARSED_FIXTURE = Path(__file__).parent / "fixtures" / "dota2_match_unparsed.json"
 
 HERO_CONSTANTS = {
-    "8": {"name": "npc_dota_hero_juggernaut", "localized_name": "Juggernaut"},
+    "8": {"name": "npc_dota_hero_slark", "localized_name": "Slark"},
     "9": {"name": "npc_dota_hero_crystal_maiden", "localized_name": "Crystal Maiden"},
     "10": {"name": "npc_dota_hero_axe", "localized_name": "Axe"},
     "11": {"name": "npc_dota_hero_zuus", "localized_name": "Zeus"},
@@ -61,7 +61,7 @@ def extraction():
 
 def test_adapter_resolves_protagonist(extraction):
     assert extraction.context.protagonist.name == "Ceaseless"
-    assert extraction.context.protagonist.persona == "Juggernaut"
+    assert extraction.context.protagonist.persona == "Slark"
     assert extraction.context.outcome == "victory"
     assert extraction.context.world["parsed"] is True
 
@@ -70,11 +70,11 @@ def test_hero_names_resolve_via_constants_map():
     adapter = Dota2OpenDotaAdapter(session=FakeSession(HERO_CONSTANTS))
     result = adapter.extract(str(FIXTURE), protagonist_hint="Ceaseless")
 
-    assert result.context.protagonist.persona == "Juggernaut"
+    assert result.context.protagonist.persona == "Slark"
     assert "Crystal Maiden" in result.context.allies
     assert "Lion" in result.context.opponents
-    assert any(event.summary == "Juggernaut struck down Lion." for event in result.events)
-    assert any(event.summary == "Juggernaut completed Battle Fury." for event in result.events)
+    assert any(event.summary == "Slark struck down Lion." for event in result.events)
+    assert any(event.summary == "Slark completed Battle Fury." for event in result.events)
 
 
 def test_constants_fetch_failure_degrades_to_hero_id():
@@ -134,6 +134,19 @@ def test_adapter_event_stream(extraction):
 def test_chat_and_economy_events(extraction):
     social_events = [event for event in extraction.events if event.kind == EventKind.SOCIAL]
     economy_events = [event for event in extraction.events if event.kind == EventKind.ECONOMY]
+    buyback_events = [
+        event for event in extraction.events
+        if event.kind == EventKind.ECONOMY and "second chance" in event.summary
+        or event.kind == EventKind.ECONOMY and "blood price" in event.summary
+    ]
+    rune_events = [
+        event for event in extraction.events
+        if event.kind == EventKind.AMBIENT and "rune" in event.summary
+    ]
+    signature_events = [
+        event for event in extraction.events
+        if event.kind == EventKind.AMBIENT and "no weapon of his drew more blood" in event.summary
+    ]
     lane_phase_events = [
         event
         for event in extraction.events
@@ -153,20 +166,27 @@ def test_chat_and_economy_events(extraction):
         event for event in extraction.events
         if event.summary == "The Radiant tear through the Dire base - 4 structures fall."
     ]
+    teamfight_events = [
+        event for event in extraction.events
+        if event.kind == EventKind.PHASE and event.summary.startswith("A team fight erupts")
+    ]
+    touched_fight = next(event for event in teamfight_events if "Black King Bar" in event.summary)
+    fallen_fight = next(event for event in teamfight_events if "falls in the exchange" in event.summary)
 
     assert len(social_events) >= 4
     assert all(not event.summary.split(": ", 1)[-1].isdigit() for event in social_events)
     assert any(event.t == -40 for event in social_events)
     assert any(event.actor == "Ceaseless" and event.importance == 0.35 for event in social_events)
     assert any(event.actor != "Ceaseless" and event.importance == 0.2 for event in social_events)
-    assert len(economy_events) == 2
-    assert [event.summary for event in economy_events] == [
+    swing_events = [event for event in economy_events if "tide of gold" in event.summary]
+    assert len(swing_events) == 2
+    assert [event.summary for event in swing_events] == [
         "The tide of gold turns toward the Dire.",
         "The tide of gold turns toward the Radiant.",
     ]
     assert len(tower_events) == 1
     assert tower_events[0].summary == "The Dire's tier-1 mid tower falls."
-    assert tower_events[0].actor == "Juggernaut"
+    assert tower_events[0].actor == "Slark"
     assert tower_events[0].protagonist_involved is True
     assert len(aggregate_events) == 1
     assert aggregate_events[0].importance == 0.75
@@ -174,6 +194,51 @@ def test_chat_and_economy_events(extraction):
     assert len(barracks_events) == 1
     assert barracks_events[0].importance == 0.7
     assert len(lane_phase_events) == 1
+    assert "Black King Bar" in touched_fight.summary
+    assert "Pounce" in touched_fight.summary
+    assert "Dark Pact" in touched_fight.summary
+    assert "3300 damage" in touched_fight.summary
+    assert "walking out untouched" in touched_fight.summary
+    assert touched_fight.importance == 0.93
+    assert touched_fight.data["abilities"] == ["Dark Pact", "Pounce"]
+    assert touched_fight.data["clutch_items"] == ["Black King Bar"]
+    assert touched_fight.data["died"] is False
+    assert "falls in the exchange" in fallen_fight.summary
+    assert len(buyback_events) == 2
+    assert {event.actor for event in buyback_events} == {"Slark", "Lion"}
+    assert sorted(event.importance for event in buyback_events) == [0.5, 0.7]
+    assert len(rune_events) == 1
+    assert rune_events[0].summary == "Slark seizes a Haste rune."
+    assert len(signature_events) == 1
+    assert "Essence Shift" in signature_events[0].summary
+    assert extraction.context.world["signature"]["name"] == "Essence Shift"
+
+
+def test_teamfight_misalignment_falls_back_without_crashing(tmp_path: Path):
+    match_data = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    match_data["teamfights"][0]["players"] = match_data["teamfights"][0]["players"][:-1]
+    misaligned_fixture = tmp_path / "dota2_misaligned.json"
+    misaligned_fixture.write_text(json.dumps(match_data), encoding="utf-8")
+
+    adapter = Dota2OpenDotaAdapter(session=FakeSession(HERO_CONSTANTS))
+    result = adapter.extract(str(misaligned_fixture), protagonist_hint="Ceaseless")
+
+    fallback_fight = next(
+        event
+        for event in result.events
+        if event.kind == EventKind.PHASE and event.t == 950
+    )
+    assert fallback_fight.summary == "A team fight erupts - 4 heroes fall."
+
+
+def test_unparsed_match_does_not_emit_combat_texture_events():
+    adapter = Dota2OpenDotaAdapter(session=FakeSession(HERO_CONSTANTS))
+    result = adapter.extract(str(UNPARSED_FIXTURE), protagonist_hint="Ceaseless")
+
+    assert "signature" not in result.context.world
+    assert not any("rune" in event.summary for event in result.events)
+    assert not any("second chance" in event.summary or "blood price" in event.summary for event in result.events)
+    assert not any("no weapon of his drew more blood" in event.summary for event in result.events)
 
 
 def test_planner_builds_arc(extraction):

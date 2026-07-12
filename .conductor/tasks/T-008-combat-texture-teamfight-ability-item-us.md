@@ -1,3 +1,12 @@
+---
+id: T-008
+title: 'Combat texture: teamfight ability/item usage, buybacks, runes, damage signature'
+status: done
+priority: 2
+depends: []
+base: b92ce1881ff1aaa11ee9d5e3ce9e98d872d5b247
+---
+
 ## Context
 
 Reader feedback on the first full story: skill casts have no timing/effect

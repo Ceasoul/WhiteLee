@@ -48,6 +48,28 @@ _BIG_ITEMS = {
     "manta", "daedalus", "bloodthorn", "sheepstick", "octarine_core",
 }
 
+_CLUTCH_ITEMS = {
+    "black_king_bar",
+    "blink",
+    "glimmer_cape",
+    "ghost",
+    "sheepstick",
+    "refresher",
+    "satanic",
+    "lotus_orb",
+    "sphere",
+    "cyclone",
+}
+
+_POWER_RUNES = {
+    0: "Double Damage",
+    1: "Haste",
+    3: "Invisibility",
+    4: "Regeneration",
+    6: "Arcane",
+    8: "Shield",
+}
+
 
 class Dota2OpenDotaAdapter(GameAdapter):
     game_id = "dota2"
@@ -103,7 +125,12 @@ class Dota2OpenDotaAdapter(GameAdapter):
         events += self._chat_events(match, players, me, hero_lookup)
         events += self._gold_swing_events(match)
         events += self._lane_phase_events(match)
-        events += self._teamfight_events(match, me, hero)
+        events += self._teamfight_events(match, me, hero, hero_lookup)
+        events += self._buyback_events(players, me, hero, hero_lookup)
+        events += self._rune_events(me, hero)
+        signature_event = self._signature_event(me, hero, hero_lookup, context)
+        if signature_event is not None:
+            events.append(signature_event)
         match_start_time = min(0.0, min((event.t for event in events), default=0.0)) - 1.0
         events.append(NarrativeEvent(
             t=match_start_time, kind=EventKind.MATCH_START, actor=handle,
@@ -176,6 +203,18 @@ class Dota2OpenDotaAdapter(GameAdapter):
         if hero_name:
             return str(hero_name)
         return hero_slug.replace("npc_dota_hero_", "").replace("_", " ").title()
+
+    @staticmethod
+    def _prettify_combat_name(name: str, protagonist_slug: str | None = None) -> str:
+        pretty = str(name).strip()
+        if pretty.startswith("item_"):
+            pretty = pretty[5:]
+        if protagonist_slug:
+            hero_tail = protagonist_slug.replace("npc_dota_hero_", "")
+            prefix = f"{hero_tail}_"
+            if pretty.startswith(prefix):
+                pretty = pretty[len(prefix):]
+        return pretty.replace("_", " ").title()
 
     @staticmethod
     def _hero_slug(player: dict[str, Any], hero_lookup: dict[str, dict[Any, str]]) -> str | None:
@@ -524,24 +563,194 @@ class Dota2OpenDotaAdapter(GameAdapter):
             )
         ]
 
-    def _teamfight_events(self, match: dict, me: dict, hero: str) -> list[NarrativeEvent]:
+    def _teamfight_events(
+        self,
+        match: dict,
+        me: dict,
+        hero: str,
+        hero_lookup: dict[str, dict[Any, str]],
+    ) -> list[NarrativeEvent]:
         out = []
         my_slot = me.get("player_slot", 0)
+        protagonist_slug = self._hero_slug(me, hero_lookup)
         for tf in match.get("teamfights", []) or []:
             deaths = tf.get("deaths", 0)
             involved = False
-            for pslot, pdata in enumerate(tf.get("players", []) or []):
+            tf_players = tf.get("players", []) or []
+            misaligned = len(tf_players) != len(match.get("players", []))
+            protagonist_fight_data = None
+            for pslot, pdata in enumerate(tf_players):
+                if pslot >= len(match.get("players", [])):
+                    break
                 if pdata.get("deaths", 0) or pdata.get("damage", 0):
                     # OpenDota teamfight players are index-aligned to match players
                     if match["players"][pslot].get("player_slot") == my_slot:
                         involved = involved or bool(pdata.get("damage", 0))
+                        protagonist_fight_data = pdata
+
+            summary = f"A team fight erupts - {deaths} heroes fall."
+            importance = min(0.9, 0.4 + 0.08 * deaths)
+            data = {"end": tf.get("end"), "deaths": deaths}
+            if involved and protagonist_fight_data and not misaligned:
+                abilities = self._top_ability_uses(
+                    protagonist_fight_data.get("ability_uses", {}),
+                    protagonist_slug,
+                )
+                clutch_items = self._clutch_items(protagonist_fight_data.get("item_uses", {}))
+                damage = int(protagonist_fight_data.get("damage", 0) or 0)
+                died = int(protagonist_fight_data.get("deaths", 0) or 0) > 0
+                summary = self._teamfight_summary(hero, deaths, abilities, clutch_items, damage, died)
+                importance = min(0.95, importance + (0.05 if clutch_items else 0.0))
+                data = {
+                    **data,
+                    "abilities": abilities,
+                    "clutch_items": clutch_items,
+                    "damage": damage,
+                    "died": died,
+                }
+
             out.append(NarrativeEvent(
                 t=float(tf.get("start", 0)), kind=EventKind.PHASE,
-                summary=f"A team fight erupts - {deaths} heroes fall.",
-                importance=min(0.9, 0.4 + 0.08 * deaths),
+                summary=summary,
+                importance=importance,
                 protagonist_involved=involved,
-                data={"end": tf.get("end"), "deaths": deaths}))
+                data=data))
         return out
+
+    def _buyback_events(
+        self,
+        players: list[dict[str, Any]],
+        me: dict[str, Any],
+        hero: str,
+        hero_lookup: dict[str, dict[Any, str]],
+    ) -> list[NarrativeEvent]:
+        out: list[NarrativeEvent] = []
+        for player in players:
+            actor = hero if player is me else self._hero_name(player, hero_lookup)
+            for entry in player.get("buyback_log", []) or []:
+                if player is me:
+                    summary = f"{hero} pays the blood price and buys his life back."
+                    importance = 0.7
+                    protagonist_involved = True
+                else:
+                    summary = f"{actor} returns from death, gold spent for a second chance."
+                    importance = 0.5
+                    protagonist_involved = False
+                out.append(NarrativeEvent(
+                    t=float(entry.get("time", 0)),
+                    kind=EventKind.ECONOMY,
+                    actor=actor,
+                    summary=summary,
+                    importance=importance,
+                    protagonist_involved=protagonist_involved,
+                    data=entry,
+                ))
+        return out
+
+    @staticmethod
+    def _rune_events(me: dict[str, Any], hero: str) -> list[NarrativeEvent]:
+        out: list[NarrativeEvent] = []
+        for entry in me.get("runes_log", []) or []:
+            rune_name = _POWER_RUNES.get(entry.get("key"))
+            if rune_name is None:
+                continue
+            out.append(NarrativeEvent(
+                t=float(entry.get("time", 0)),
+                kind=EventKind.AMBIENT,
+                actor=hero,
+                summary=f"{hero} seizes a {rune_name} rune.",
+                importance=0.35,
+                protagonist_involved=True,
+                data=entry,
+            ))
+        return out
+
+    def _signature_event(
+        self,
+        me: dict[str, Any],
+        hero: str,
+        hero_lookup: dict[str, dict[Any, str]],
+        context: MatchContext,
+    ) -> NarrativeEvent | None:
+        damage_inflictor = me.get("damage_inflictor")
+        if not isinstance(damage_inflictor, dict) or not damage_inflictor:
+            return None
+        top_entry = max(damage_inflictor.items(), key=lambda item: int(item[1] or 0))
+        if int(top_entry[1] or 0) <= 0:
+            return None
+        pretty = self._prettify_combat_name(top_entry[0], self._hero_slug(me, hero_lookup))
+        context.world["signature"] = {"name": pretty, "damage": int(top_entry[1])}
+        return NarrativeEvent(
+            t=max(float(context.duration) - 1.0, 0.0),
+            kind=EventKind.AMBIENT,
+            actor=hero,
+            summary=f"Across the whole battle, no weapon of his drew more blood than {pretty}.",
+            importance=0.3,
+            protagonist_involved=True,
+            data={"name": pretty, "damage": int(top_entry[1])},
+        )
+
+    def _top_ability_uses(
+        self,
+        ability_uses: Any,
+        protagonist_slug: str | None,
+    ) -> list[str]:
+        if not isinstance(ability_uses, dict):
+            return []
+        ranked = sorted(
+            (
+                (name, int(count or 0))
+                for name, count in ability_uses.items()
+                if int(count or 0) > 0
+            ),
+            key=lambda item: (-item[1], item[0]),
+        )
+        return [
+            self._prettify_combat_name(name, protagonist_slug)
+            for name, _count in ranked[:2]
+        ]
+
+    def _clutch_items(self, item_uses: Any) -> list[str]:
+        if not isinstance(item_uses, dict):
+            return []
+        ranked = sorted(
+            (
+                (name, int(count or 0))
+                for name, count in item_uses.items()
+                if name in _CLUTCH_ITEMS and int(count or 0) > 0
+            ),
+            key=lambda item: (-item[1], item[0]),
+        )
+        return [self._prettify_combat_name(name) for name, _count in ranked]
+
+    @staticmethod
+    def _teamfight_summary(
+        hero: str,
+        deaths: int,
+        abilities: list[str],
+        clutch_items: list[str],
+        damage: int,
+        died: bool,
+    ) -> str:
+        summary = f"A team fight erupts - {deaths} heroes fall."
+        fragments: list[str] = []
+        if clutch_items:
+            item_text = " and ".join(clutch_items[:2])
+            fragments.append(f"{hero} opens his {item_text}")
+        if abilities:
+            ability_text = " and ".join(abilities[:2])
+            verb = "strikes with" if fragments else f"{hero} strikes with"
+            fragments.append(f"{verb} {ability_text}")
+        if damage > 0:
+            if fragments:
+                fragments[-1] = f"{fragments[-1]} ({damage} damage)"
+            else:
+                fragments.append(f"{hero} deals {damage} damage")
+        if died:
+            fragments.append("falls in the exchange")
+        else:
+            fragments.append("walking out untouched")
+        return f"{summary} {' and '.join(fragments)}."
 
     @staticmethod
     def _is_parsed_match(match: dict[str, Any]) -> bool:
