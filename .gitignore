@@ -7,4 +7,5 @@ build/
 .pytest_cache/
 .ruff_cache/
 whitelee_*.md
+*.progress.json
 *.dem

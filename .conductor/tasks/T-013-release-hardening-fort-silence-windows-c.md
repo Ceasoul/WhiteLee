@@ -1,10 +1,11 @@
 ---
 id: T-013
 title: 'Release hardening: fort silence, Windows CI matrix, gitignore progress files'
-status: todo
+status: done
 priority: 2
 depends:
 - T-012
+base: 7ee03702de80156d19e9e62f1daec33aef19f7df
 ---
 
 ## Context

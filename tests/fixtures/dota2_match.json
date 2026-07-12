@@ -336,6 +336,12 @@
    "type": "building_kill",
    "unit": "npc_dota_hero_juggernaut",
    "key": "npc_dota_badguys_tower4"
+  },
+  {
+   "time": 2065,
+   "type": "building_kill",
+   "unit": "npc_dota_hero_juggernaut",
+   "key": "npc_dota_badguys_fort"
   }
  ],
  "teamfights": [

@@ -173,6 +173,7 @@ def test_chat_and_economy_events(extraction):
         event for event in extraction.events
         if event.kind == EventKind.OBJECTIVE and "tier-1 mid tower" in event.summary
     ]
+    objective_events = [event for event in extraction.events if event.kind == EventKind.OBJECTIVE]
     barracks_events = [
         event for event in extraction.events
         if event.kind == EventKind.OBJECTIVE and "melee barracks" in event.summary
@@ -210,9 +211,12 @@ def test_chat_and_economy_events(extraction):
     assert tower_events[0].summary == "The Dire's tier-1 mid tower falls."
     assert tower_events[0].actor == "Slark"
     assert tower_events[0].protagonist_involved is True
+    assert len(objective_events) == 3
+    assert not any(event.target == "npc_dota_badguys_fort" for event in extraction.events)
     assert len(aggregate_events) == 1
     assert aggregate_events[0].importance == 0.75
     assert len(aggregate_events[0].data["merged_keys"]) == 4
+    assert "npc_dota_badguys_fort" not in aggregate_events[0].data["merged_keys"]
     assert len(barracks_events) == 1
     assert barracks_events[0].importance == 0.7
     assert len(lane_phase_events) == 1

@@ -353,17 +353,24 @@ class Dota2OpenDotaAdapter(GameAdapter):
     ) -> list[NarrativeEvent]:
         out: list[NarrativeEvent] = []
         for obj in match.get("objectives", []) or []:
+            objective_type = str(obj.get("type", ""))
+            building_key = str(obj.get("key", ""))
             building_event = self._building_objective_event(obj, me, hero, hero_lookup)
             if building_event is not None:
                 out.append(building_event)
                 continue
+            if (
+                objective_type in {"building_kill", "CHAT_MESSAGE_TOWER_KILL", "CHAT_MESSAGE_BARRACKS_KILL"}
+                and self._is_silenced_building_key(building_key)
+            ):
+                continue
 
             kind, imp, phrase = _OBJECTIVE_MAP.get(
-                obj.get("type", ""), (EventKind.OBJECTIVE, 0.4, "objective event"))
+                objective_type, (EventKind.OBJECTIVE, 0.4, "objective event"))
             out.append(NarrativeEvent(
                 t=float(obj.get("time", 0)), kind=kind,
                 actor=str(obj.get("unit", "") or obj.get("team", "")),
-                target=str(obj.get("key", "")),
+                target=building_key,
                 summary=phrase, importance=imp, data=obj))
         return self._aggregate_building_events(out)
 
@@ -565,9 +572,16 @@ class Dota2OpenDotaAdapter(GameAdapter):
             return {"owner": owner, "kind": "barracks", "label": "melee barracks", "lane": lane}
         if "range" in tokens and "rax" in tokens:
             return {"owner": owner, "kind": "barracks", "label": "ranged barracks", "lane": lane}
-        if "fort" in tokens:
+        if Dota2OpenDotaAdapter._is_silenced_building_key(key):
             return {"owner": owner, "kind": "fort", "lane": lane}
         return None
+
+    @staticmethod
+    def _is_silenced_building_key(key: str) -> bool:
+        if not key:
+            return False
+        tokens = key.split("_")
+        return "fort" in tokens or "ancient" in tokens
 
     @staticmethod
     def _aggregate_building_events(events: list[NarrativeEvent]) -> list[NarrativeEvent]:
