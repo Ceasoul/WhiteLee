@@ -10,6 +10,7 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 from typing import Callable
@@ -44,6 +45,8 @@ def main(argv: list[str] | None = None) -> int:
                    help="style profile name or path to a YAML")
     p.add_argument("--style-sample", default=None,
                    help="path to a text file whose voice the story imitates")
+    p.add_argument("--codex", default=None,
+                   help="load or save terminology codex JSON")
     p.add_argument("--model", default=None,
                    help="override the configured LLM model name")
     p.add_argument("--chapters", type=int, default=5,
@@ -71,11 +74,21 @@ def main(argv: list[str] | None = None) -> int:
         print(export_json(plan))
         return 0
 
+    out = _output_path(args.game, result.context.world.get("match_id", "story"), args.output, args.format)
     style = StyleProfile.load(args.style, sample_path=args.style_sample)
     if args.model:
         styler = Styler(style, client=LLMClient(model_override=args.model))
     else:
         styler = Styler(style)
+    codex_path = _codex_path(out, args.codex)
+    if codex_path.exists():
+        codex = json.loads(codex_path.read_text(encoding="utf-8"))
+    else:
+        codex = styler.build_codex(plan)
+        codex_path.write_text(
+            json.dumps(codex, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
 
     def progress(ch: Chapter, _prose: str) -> None:
         print(f"[retale] chapter {ch.index}/{len(plan.chapters)} written "
@@ -94,8 +107,7 @@ def main(argv: list[str] | None = None) -> int:
 
         callback = epub_callback
 
-    story = styler.write_story(plan, on_chapter=callback)
-    out = _output_path(args.game, result.context.world.get("match_id", "story"), args.output, args.format)
+    story = styler.write_story(plan, on_chapter=callback, codex=codex)
     if args.format == "epub":
         write_epub(
             title=_story_title(result),
@@ -118,6 +130,12 @@ def _output_path(game: str, match_id: object, output: str | None, format_name: s
     if output:
         return Path(output).with_suffix(suffix)
     return Path(f"retale_{game}_{match_id or 'story'}{suffix}")
+
+
+def _codex_path(output_path: Path, codex_arg: str | None) -> Path:
+    if codex_arg:
+        return Path(codex_arg)
+    return output_path.with_suffix(".codex.json")
 
 
 def _chapter_export(prose: str) -> tuple[str, str]:

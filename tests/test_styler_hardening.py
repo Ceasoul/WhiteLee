@@ -38,7 +38,7 @@ def _sample_plan() -> StoryPlan:
 
 
 def test_sanitizer_drops_meta_text_before_header():
-    sanitized = Styler._sanitize_chapter(
+    sanitized = Styler(StyleProfile(name="test"))._sanitize_chapter(
         "Planning notes\nDo not show this\n## Actual Title\n\nStory text.",
         1,
     )
@@ -48,7 +48,7 @@ def test_sanitizer_drops_meta_text_before_header():
 
 
 def test_sanitizer_synthesizes_header_when_missing():
-    sanitized = Styler._sanitize_chapter("Plain body only.", 3)
+    sanitized = Styler(StyleProfile(name="test"))._sanitize_chapter("Plain body only.", 3)
 
     assert sanitized.startswith("## 第3章")
     assert "Plain body only." in sanitized

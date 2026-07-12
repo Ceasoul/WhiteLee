@@ -2,6 +2,13 @@ name: wuxia
 language: zh
 voice: third_person_limited
 words_per_chapter: 700
+title_format: "第{n}章 {title}"
+naming: |
+  Heroes are referred to by their Chinese community or unit nickname in prose
+  (for example: Slark -> 小鱼人, Invoker -> 卡尔, Morphling -> 水人).
+  The protagonist is introduced as <nickname>“<player handle>”.
+  The protagonist's signature skills must receive wuxia-style names and those
+  names must stay fixed for the entire book.
 prompt: |
   武侠小说风格，参考金庸的叙事节奏：白描动作、克制的抒情、
   章回体标题（对仗或七言）。战斗写"招式"与"气势"，不写游戏数值。

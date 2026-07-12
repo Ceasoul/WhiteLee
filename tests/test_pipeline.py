@@ -192,6 +192,11 @@ def test_planner_builds_arc(extraction):
 
 class MockLLM:
     def complete(self, system, user, max_tokens=0):
+        if "Return STRICT JSON only" in system:
+            return Completion(
+                text='{"heroes": {}, "protagonist_intro": "", "skills": {}, "factions": {}}',
+                finish_reason="stop",
+            )
         assert "NEVER invent outcomes" in system
         assert "CHAPTER" in user
         return Completion(text="## A Mock Chapter\n\nThe blade sang.", finish_reason="stop")
@@ -202,7 +207,7 @@ def test_styler_assembles_story(extraction):
     style = StyleProfile.load("adventure")
     styler = Styler(style, client=MockLLM())
     story = styler.write_story(plan)
-    assert story.count("## A Mock Chapter") == len(plan.chapters)
+    assert story.count("A Mock Chapter") == len(plan.chapters)
     assert story.startswith("# ")
 
 
@@ -210,3 +215,5 @@ def test_style_profiles_all_load():
     for name in ("adventure", "wuxia", "hardboiled", "chronicle_zh"):
         s = StyleProfile.load(name)
         assert s.prompt
+        assert hasattr(s, "title_format")
+        assert hasattr(s, "naming")

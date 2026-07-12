@@ -98,7 +98,15 @@ def test_cli_writes_epub_via_chapter_callback(monkeypatch, tmp_path: Path):
         def __init__(self, style):
             self.style = style
 
-        def write_story(self, plan: FakePlan, on_chapter=None) -> str:
+        def build_codex(self, plan: FakePlan) -> dict[str, object]:
+            return {
+                "heroes": {},
+                "protagonist_intro": "",
+                "skills": {},
+                "factions": {},
+            }
+
+        def write_story(self, plan: FakePlan, on_chapter=None, codex=None) -> str:
             parts = ["# Knight - a dota2 tale\n"]
             for chapter, prose in zip(plan.chapters, chapter_prose):
                 parts.append(prose)

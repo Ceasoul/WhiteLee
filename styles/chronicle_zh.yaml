@@ -2,6 +2,13 @@ name: chronicle_zh
 language: zh
 voice: third_person_limited
 words_per_chapter: 500
+title_format: "第{n}章 {title}"
+naming: |
+  Chronicle register naming must stay consistent across the whole book.
+  Heroes are referred to by their established Chinese community or unit
+  nickname, and the protagonist is introduced as <nickname>“<player handle>”.
+  Skill names should read like fixed historical epithets rather than changing
+  from chapter to chapter.
 prompt: |
   史诗编年体，仿《史记》纪传体与维斯特洛学士笔法的混合：
   冷静、克制、有距离感的全知视角，偶尔插入"后世史家如此记载"式的评注。

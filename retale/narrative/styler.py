@@ -17,8 +17,11 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import requests
 import yaml
@@ -36,6 +39,8 @@ class StyleProfile:
     prompt: str = ""                       # free-form style instructions
     sample: str = ""                       # optional writing sample to imitate
     words_per_chapter: int = 600
+    title_format: str = ""
+    naming: str = ""
 
     @classmethod
     def load(cls, name_or_path: str, sample_path: str | None = None) -> "StyleProfile":
@@ -55,7 +60,9 @@ class StyleProfile:
                    voice=data.get("voice", "third_person_limited"),
                    prompt=data.get("prompt", ""),
                    sample=sample,
-                   words_per_chapter=int(data.get("words_per_chapter", 600)))
+                   words_per_chapter=int(data.get("words_per_chapter", 600)),
+                   title_format=data.get("title_format", "") or "",
+                   naming=data.get("naming", "") or "")
 
 
 @dataclass
@@ -151,8 +158,10 @@ class Styler:
         self.style = style
         self.client = client or LLMClient()
 
-    def write_story(self, plan: StoryPlan, on_chapter=None) -> str:
-        outline = self._outline_text(plan)
+    def write_story(self, plan: StoryPlan, on_chapter=None, codex: dict[str, Any] | None = None) -> str:
+        if codex is None:
+            codex = self.build_codex(plan)
+        outline = self._outline_text(plan, codex)
         parts = [f"# {self._title(plan)}\n"]
         for ch in plan.chapters:
             prose = self._write_chapter(plan, ch, outline)
@@ -160,6 +169,23 @@ class Styler:
             if on_chapter:
                 on_chapter(ch, prose)
         return "\n".join(parts)
+
+    def build_codex(self, plan: StoryPlan) -> dict[str, Any]:
+        system = (
+            "Return STRICT JSON only. No markdown fences. No explanations. "
+            "Provide a terminology codex for a serialized novel adaptation."
+        )
+        user = self._codex_request(plan)
+        for _attempt in range(2):
+            completion = self.client.complete(system, user, max_tokens=4000)
+            parsed = self._parse_codex_json(completion.text)
+            if parsed is not None:
+                return parsed
+        print(
+            "[retale] warning: failed to parse terminology codex JSON; continuing with an empty codex.",
+            file=sys.stderr,
+        )
+        return self._empty_codex()
 
     # -- prompt assembly ------------------------------------------------
     def _system_prompt(self) -> str:
@@ -185,7 +211,7 @@ class Styler:
                      f"---\n{self.style.sample}\n---\n")
         return base
 
-    def _outline_text(self, plan: StoryPlan) -> str:
+    def _outline_text(self, plan: StoryPlan, codex: dict[str, Any]) -> str:
         ctx = plan.context
         lines = [
             f"GAME: {ctx.game} | OUTCOME: {ctx.outcome} | "
@@ -197,6 +223,7 @@ class Styler:
         ]
         for ch in plan.chapters:
             lines.append(f"  Ch{ch.index} [{ch.arc_role}] ~ {ch.title_hint}")
+        lines += self._terminology_lines(codex)
         return "\n".join(lines)
 
     def _write_chapter(self, plan: StoryPlan, ch: Chapter, outline: str) -> str:
@@ -229,23 +256,96 @@ class Styler:
                 best = second
         return self._sanitize_chapter(best.text, ch.index)
 
-    @staticmethod
-    def _sanitize_chapter(raw: str, index: int) -> str:
+    def _sanitize_chapter(self, raw: str, index: int) -> str:
         lines = [line for line in raw.splitlines() if not line.strip().startswith("```")]
         title_index = next(
             (line_index for line_index, line in enumerate(lines) if line.lstrip().startswith("## ")),
             None,
         )
         if title_index is None:
-            body = "\n".join(line for line in lines if line.strip()).strip()
+            body = "\n".join(lines).strip("\n")
             if body:
-                return f"## 第{index}章\n\n{body}"
-            return f"## 第{index}章"
+                return f"{self._title_line(index, '')}\n\n{body}"
+            return self._title_line(index, "")
 
         kept_lines = lines[title_index:]
-        title = kept_lines[0].lstrip("#").strip()
-        kept_lines[0] = f"## {title}"
+        header = kept_lines[0].lstrip()
+        title = header[3:].strip() if header.startswith("## ") else header.lstrip("#").strip()
+        kept_lines[0] = self._title_line(index, title)
         return "\n".join(kept_lines).strip()
+
+    def _title_line(self, index: int, title: str) -> str:
+        cleaned = self._strip_title_prefix(title).strip()
+        if self.style.title_format:
+            rendered = self.style.title_format.format(n=index, title=cleaned).strip()
+            return f"## {rendered}"
+        if cleaned:
+            return f"## {cleaned}"
+        return f"## 第{index}章"
+
+    @staticmethod
+    def _parse_codex_json(raw: str) -> dict[str, Any] | None:
+        cleaned = "\n".join(
+            line for line in raw.splitlines() if not line.strip().startswith("```")
+        ).strip()
+        if not cleaned:
+            return None
+        try:
+            data = json.loads(cleaned)
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(data, dict):
+            return None
+        empty = Styler._empty_codex()
+        for key in empty:
+            value = data.get(key, {})
+            empty[key] = value if isinstance(value, dict) else empty[key]
+        protagonist_intro = data.get("protagonist_intro", "")
+        empty["protagonist_intro"] = protagonist_intro if isinstance(protagonist_intro, str) else ""
+        return empty
+
+    def _codex_request(self, plan: StoryPlan) -> str:
+        ctx = plan.context
+        return (
+            "Create a strict terminology codex JSON for this story.\n"
+            f"Language: {self.style.language}\n"
+            f"Naming conventions:\n{self.style.naming or '-'}\n"
+            f"Protagonist handle: {ctx.protagonist.name}\n"
+            f"Protagonist persona: {ctx.protagonist.persona}\n"
+            f"Allies: {', '.join(ctx.allies) or '-'}\n"
+            f"Opponents: {', '.join(ctx.opponents) or '-'}\n"
+            "Return exactly this schema:\n"
+            '{"heroes": {"<canonical name>": "<name to use in prose>"}, '
+            '"protagonist_intro": "<exact introduction phrase>", '
+            '"skills": {"<mechanic>": "<fixed literary name>"}, '
+            '"factions": {"Radiant": "...", "Dire": "..."}}'
+        )
+
+    def _terminology_lines(self, codex: dict[str, Any]) -> list[str]:
+        lines = [
+            "TERMINOLOGY:",
+            "Use EXACTLY these names in every chapter. Never invent alternative names for the same entity.",
+        ]
+        if codex.get("protagonist_intro"):
+            lines.append(f"protagonist_intro: {codex['protagonist_intro']}")
+        for section in ("heroes", "skills", "factions"):
+            entries = codex.get(section, {})
+            for canonical, preferred in entries.items():
+                lines.append(f"{section}.{canonical} = {preferred}")
+        return lines
+
+    @staticmethod
+    def _strip_title_prefix(title: str) -> str:
+        return re.sub(
+            r"^(?:第[一二三四五六七八九十百千\d]+[章节回卷篇部][ :：.-]?|Chapter \d+[:. ]?)\s*",
+            "",
+            title,
+            flags=re.IGNORECASE,
+        )
+
+    @staticmethod
+    def _empty_codex() -> dict[str, Any]:
+        return {"heroes": {}, "protagonist_intro": "", "skills": {}, "factions": {}}
 
     @staticmethod
     def _title(plan: StoryPlan) -> str:

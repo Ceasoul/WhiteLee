@@ -2,6 +2,7 @@ name: hardboiled
 language: en
 voice: first_person
 words_per_chapter: 550
+title_format: "Chapter {n}: {title}"
 prompt: |
   Hardboiled noir. First person, cynical, dry wit. The protagonist
   narrates like a detective who has seen too much. Rain optional but
