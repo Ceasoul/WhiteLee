@@ -1,0 +1,108 @@
+{
+ "match_id": 7000000001,
+ "duration": 1800,
+ "radiant_win": false,
+ "players": [
+  {
+   "player_slot": 0,
+   "hero_id": 8,
+   "personaname": "Ceaseless",
+   "account_id": 1000,
+   "kills": 0,
+   "assists": 0,
+   "kills_log": [],
+   "purchase_log": []
+  },
+  {
+   "player_slot": 1,
+   "hero_id": 9,
+   "personaname": "IceQueen",
+   "account_id": 1001,
+   "kills": 0,
+   "assists": 0,
+   "kills_log": [],
+   "purchase_log": []
+  },
+  {
+   "player_slot": 2,
+   "hero_id": 10,
+   "personaname": "AxeMan",
+   "account_id": 1002,
+   "kills": 0,
+   "assists": 0,
+   "kills_log": [],
+   "purchase_log": []
+  },
+  {
+   "player_slot": 3,
+   "hero_id": 11,
+   "personaname": "ZapGod",
+   "account_id": 1003,
+   "kills": 0,
+   "assists": 0,
+   "kills_log": [],
+   "purchase_log": []
+  },
+  {
+   "player_slot": 4,
+   "hero_id": 12,
+   "personaname": "MoonArrow",
+   "account_id": 1004,
+   "kills": 0,
+   "assists": 0,
+   "kills_log": [],
+   "purchase_log": []
+  },
+  {
+   "player_slot": 128,
+   "hero_id": 20,
+   "personaname": "FingerOfDeath",
+   "account_id": 2000,
+   "kills": 0,
+   "assists": 0,
+   "kills_log": [],
+   "purchase_log": []
+  },
+  {
+   "player_slot": 129,
+   "hero_id": 21,
+   "personaname": "HookCity",
+   "account_id": 2001,
+   "kills": 0,
+   "assists": 0,
+   "kills_log": [],
+   "purchase_log": []
+  },
+  {
+   "player_slot": 130,
+   "hero_id": 22,
+   "personaname": "BangBang",
+   "account_id": 2002,
+   "kills": 0,
+   "assists": 0,
+   "kills_log": [],
+   "purchase_log": []
+  },
+  {
+   "player_slot": 131,
+   "hero_id": 23,
+   "personaname": "GraveKeeper",
+   "account_id": 2003,
+   "kills": 0,
+   "assists": 0,
+   "kills_log": [],
+   "purchase_log": []
+  },
+  {
+   "player_slot": 132,
+   "hero_id": 24,
+   "personaname": "ChargeBull",
+   "account_id": 2004,
+   "kills": 0,
+   "assists": 0,
+   "kills_log": [],
+   "purchase_log": []
+  }
+ ],
+ "objectives": []
+}
