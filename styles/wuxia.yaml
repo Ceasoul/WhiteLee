@@ -1,0 +1,8 @@
+name: wuxia
+language: zh
+voice: third_person_limited
+words_per_chapter: 700
+prompt: |
+  武侠小说风格，参考金庸的叙事节奏：白描动作、克制的抒情、
+  章回体标题（对仗或七言）。战斗写"招式"与"气势"，不写游戏数值。
+  人物对白半文半白。每章结尾留悬念，但不要写出"欲知后事如何"这类套话。

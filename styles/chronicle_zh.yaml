@@ -1,0 +1,8 @@
+name: chronicle_zh
+language: zh
+voice: third_person_limited
+words_per_chapter: 500
+prompt: |
+  史诗编年体，仿《史记》纪传体与维斯特洛学士笔法的混合：
+  冷静、克制、有距离感的全知视角，偶尔插入"后世史家如此记载"式的评注。
+  重大转折处放慢节奏细写，过场快进。

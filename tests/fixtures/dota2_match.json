@@ -1,0 +1,352 @@
+{
+ "match_id": 8123456789,
+ "duration": 2200,
+ "radiant_win": true,
+ "players": [
+  {
+   "player_slot": 0,
+   "hero_id": 8,
+   "hero_name": "npc_dota_hero_juggernaut",
+   "personaname": "Ceaseless",
+   "account_id": 1000,
+   "kills": 7,
+   "assists": 0,
+   "kills_log": [
+    {
+     "time": 310,
+     "key": "npc_dota_hero_lion"
+    },
+    {
+     "time": 620,
+     "key": "npc_dota_hero_sniper"
+    },
+    {
+     "time": 1100,
+     "key": "npc_dota_hero_pudge"
+    },
+    {
+     "time": 1450,
+     "key": "npc_dota_hero_dazzle"
+    },
+    {
+     "time": 1900,
+     "key": "npc_dota_hero_lion"
+    },
+    {
+     "time": 2100,
+     "key": "npc_dota_hero_sniper"
+    },
+    {
+     "time": 2140,
+     "key": "npc_dota_hero_spirit_breaker"
+    }
+   ],
+   "purchase_log": [
+    {
+     "time": 480,
+     "key": "battle_fury"
+    },
+    {
+     "time": 1200,
+     "key": "manta"
+    },
+    {
+     "time": 1800,
+     "key": "black_king_bar"
+    },
+    {
+     "time": 100,
+     "key": "tango"
+    }
+   ]
+  },
+  {
+   "player_slot": 1,
+   "hero_id": 9,
+   "hero_name": "npc_dota_hero_crystal_maiden",
+   "personaname": "IceQueen",
+   "account_id": 1001,
+   "kills": 0,
+   "assists": 0,
+   "kills_log": [],
+   "purchase_log": []
+  },
+  {
+   "player_slot": 2,
+   "hero_id": 10,
+   "hero_name": "npc_dota_hero_axe",
+   "personaname": "AxeMan",
+   "account_id": 1002,
+   "kills": 0,
+   "assists": 0,
+   "kills_log": [],
+   "purchase_log": []
+  },
+  {
+   "player_slot": 3,
+   "hero_id": 11,
+   "hero_name": "npc_dota_hero_zeus",
+   "personaname": "ZapGod",
+   "account_id": 1003,
+   "kills": 0,
+   "assists": 0,
+   "kills_log": [],
+   "purchase_log": []
+  },
+  {
+   "player_slot": 4,
+   "hero_id": 12,
+   "hero_name": "npc_dota_hero_mirana",
+   "personaname": "MoonArrow",
+   "account_id": 1004,
+   "kills": 0,
+   "assists": 0,
+   "kills_log": [],
+   "purchase_log": []
+  },
+  {
+   "player_slot": 128,
+   "hero_id": 20,
+   "hero_name": "npc_dota_hero_lion",
+   "personaname": "FingerOfDeath",
+   "account_id": 2000,
+   "kills": 0,
+   "assists": 0,
+   "kills_log": [
+    {
+     "time": 980,
+     "key": "npc_dota_hero_juggernaut"
+    }
+   ],
+   "purchase_log": []
+  },
+  {
+   "player_slot": 129,
+   "hero_id": 21,
+   "hero_name": "npc_dota_hero_pudge",
+   "personaname": "HookCity",
+   "account_id": 2001,
+   "kills": 0,
+   "assists": 0,
+   "kills_log": [
+    {
+     "time": 700,
+     "key": "npc_dota_hero_juggernaut"
+    },
+    {
+     "time": 1520,
+     "key": "npc_dota_hero_juggernaut"
+    }
+   ],
+   "purchase_log": []
+  },
+  {
+   "player_slot": 130,
+   "hero_id": 22,
+   "hero_name": "npc_dota_hero_sniper",
+   "personaname": "BangBang",
+   "account_id": 2002,
+   "kills": 0,
+   "assists": 0,
+   "kills_log": [],
+   "purchase_log": []
+  },
+  {
+   "player_slot": 131,
+   "hero_id": 23,
+   "hero_name": "npc_dota_hero_dazzle",
+   "personaname": "GraveKeeper",
+   "account_id": 2003,
+   "kills": 0,
+   "assists": 0,
+   "kills_log": [],
+   "purchase_log": []
+  },
+  {
+   "player_slot": 132,
+   "hero_id": 24,
+   "hero_name": "npc_dota_hero_spirit_breaker",
+   "personaname": "ChargeBull",
+   "account_id": 2004,
+   "kills": 0,
+   "assists": 0,
+   "kills_log": [],
+   "purchase_log": []
+  }
+ ],
+ "objectives": [
+  {
+   "time": 290,
+   "type": "CHAT_MESSAGE_FIRSTBLOOD",
+   "unit": "npc_dota_hero_lion",
+   "key": 0
+  },
+  {
+   "time": 900,
+   "type": "CHAT_MESSAGE_TOWER_KILL",
+   "unit": "npc_dota_hero_juggernaut",
+   "key": "dire_t1_mid"
+  },
+  {
+   "time": 1600,
+   "type": "CHAT_MESSAGE_ROSHAN_KILL",
+   "unit": "Radiant",
+   "key": ""
+  },
+  {
+   "time": 1610,
+   "type": "CHAT_MESSAGE_AEGIS",
+   "unit": "npc_dota_hero_juggernaut",
+   "key": ""
+  },
+  {
+   "time": 2050,
+   "type": "CHAT_MESSAGE_BARRACKS_KILL",
+   "unit": "Radiant",
+   "key": "dire_mid_rax"
+  }
+ ],
+ "teamfights": [
+  {
+   "start": 950,
+   "end": 1010,
+   "deaths": 4,
+   "players": [
+    {
+     "deaths": 0,
+     "damage": 900
+    },
+    {
+     "deaths": 0,
+     "damage": 900
+    },
+    {
+     "deaths": 0,
+     "damage": 900
+    },
+    {
+     "deaths": 0,
+     "damage": 900
+    },
+    {
+     "deaths": 0,
+     "damage": 900
+    },
+    {
+     "deaths": 0,
+     "damage": 900
+    },
+    {
+     "deaths": 0,
+     "damage": 900
+    },
+    {
+     "deaths": 0,
+     "damage": 900
+    },
+    {
+     "deaths": 0,
+     "damage": 900
+    },
+    {
+     "deaths": 0,
+     "damage": 900
+    }
+   ]
+  },
+  {
+   "start": 1500,
+   "end": 1560,
+   "deaths": 5,
+   "players": [
+    {
+     "deaths": 1,
+     "damage": 1200
+    },
+    {
+     "deaths": 1,
+     "damage": 1200
+    },
+    {
+     "deaths": 1,
+     "damage": 1200
+    },
+    {
+     "deaths": 1,
+     "damage": 1200
+    },
+    {
+     "deaths": 1,
+     "damage": 1200
+    },
+    {
+     "deaths": 1,
+     "damage": 1200
+    },
+    {
+     "deaths": 1,
+     "damage": 1200
+    },
+    {
+     "deaths": 1,
+     "damage": 1200
+    },
+    {
+     "deaths": 1,
+     "damage": 1200
+    },
+    {
+     "deaths": 1,
+     "damage": 1200
+    }
+   ]
+  },
+  {
+   "start": 2080,
+   "end": 2150,
+   "deaths": 6,
+   "players": [
+    {
+     "deaths": 0,
+     "damage": 2000
+    },
+    {
+     "deaths": 0,
+     "damage": 2000
+    },
+    {
+     "deaths": 0,
+     "damage": 2000
+    },
+    {
+     "deaths": 0,
+     "damage": 2000
+    },
+    {
+     "deaths": 0,
+     "damage": 2000
+    },
+    {
+     "deaths": 0,
+     "damage": 2000
+    },
+    {
+     "deaths": 0,
+     "damage": 2000
+    },
+    {
+     "deaths": 0,
+     "damage": 2000
+    },
+    {
+     "deaths": 0,
+     "damage": 2000
+    },
+    {
+     "deaths": 0,
+     "damage": 2000
+    }
+   ]
+  }
+ ]
+}

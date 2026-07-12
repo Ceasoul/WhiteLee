@@ -1,0 +1,8 @@
+name: adventure
+language: en
+voice: third_person_limited
+words_per_chapter: 600
+prompt: |
+  Classic adventure novel. Vivid action, forward momentum, short punchy
+  sentences in combat, longer reflective ones between engagements.
+  End every chapter except the last on a hook.

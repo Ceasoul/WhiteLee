@@ -1,0 +1,206 @@
+"""Styler: chapter plan -> prose, in a configurable literary style.
+
+Providers are pluggable via env vars (no SDK dependencies, plain HTTPS):
+
+  RETALE_PROVIDER=anthropic   (default)  needs ANTHROPIC_API_KEY
+  RETALE_PROVIDER=openai                 needs OPENAI_API_KEY
+  RETALE_PROVIDER=openai_compatible      needs RETALE_BASE_URL + RETALE_API_KEY
+                                         (works with Ollama, vLLM, DeepSeek...)
+
+Style profiles are YAML files in styles/. A profile controls voice,
+diction, pacing and language; users can also point --style at their own
+YAML, or supply --style-sample <file> with their own writing so the
+model imitates their personal voice.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from dataclasses import dataclass
+from pathlib import Path
+
+import requests
+import yaml
+
+from retale.narrative.planner import Chapter, StoryPlan
+
+STYLES_DIR = Path(__file__).resolve().parent.parent.parent / "styles"
+
+
+@dataclass
+class StyleProfile:
+    name: str
+    language: str = "en"
+    voice: str = "third_person_limited"   # or first_person
+    prompt: str = ""                       # free-form style instructions
+    sample: str = ""                       # optional writing sample to imitate
+    words_per_chapter: int = 600
+
+    @classmethod
+    def load(cls, name_or_path: str, sample_path: str | None = None) -> "StyleProfile":
+        p = Path(name_or_path)
+        if not p.exists():
+            p = STYLES_DIR / f"{name_or_path}.yaml"
+        if not p.exists():
+            raise FileNotFoundError(
+                f"Style '{name_or_path}' not found. Available: "
+                + ", ".join(sorted(f.stem for f in STYLES_DIR.glob("*.yaml"))))
+        data = yaml.safe_load(p.read_text(encoding="utf-8"))
+        sample = ""
+        if sample_path:
+            sample = Path(sample_path).read_text(encoding="utf-8")[:6000]
+        return cls(name=data.get("name", p.stem),
+                   language=data.get("language", "en"),
+                   voice=data.get("voice", "third_person_limited"),
+                   prompt=data.get("prompt", ""),
+                   sample=sample,
+                   words_per_chapter=int(data.get("words_per_chapter", 600)))
+
+
+# ---------------------------------------------------------------------------
+# LLM providers
+# ---------------------------------------------------------------------------
+
+class LLMClient:
+    def __init__(self):
+        self.provider = os.environ.get("RETALE_PROVIDER", "anthropic")
+        self.model = os.environ.get("RETALE_MODEL", "")
+
+    def complete(self, system: str, user: str, max_tokens: int = 2000) -> str:
+        if self.provider == "anthropic":
+            return self._anthropic(system, user, max_tokens)
+        return self._openai_compatible(system, user, max_tokens)
+
+    def _anthropic(self, system: str, user: str, max_tokens: int) -> str:
+        key = os.environ.get("ANTHROPIC_API_KEY")
+        if not key:
+            raise EnvironmentError("Set ANTHROPIC_API_KEY (or switch RETALE_PROVIDER).")
+        resp = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": key, "anthropic-version": "2023-06-01",
+                     "content-type": "application/json"},
+            json={"model": self.model or "claude-sonnet-4-5",
+                  "max_tokens": max_tokens,
+                  "system": system,
+                  "messages": [{"role": "user", "content": user}]},
+            timeout=120)
+        resp.raise_for_status()
+        return "".join(b.get("text", "") for b in resp.json().get("content", []))
+
+    def _openai_compatible(self, system: str, user: str, max_tokens: int) -> str:
+        if self.provider == "openai":
+            base = "https://api.openai.com/v1"
+            key = os.environ.get("OPENAI_API_KEY", "")
+            model = self.model or "gpt-4o"
+        else:
+            base = os.environ.get("RETALE_BASE_URL", "http://localhost:11434/v1")
+            key = os.environ.get("RETALE_API_KEY", "ollama")
+            model = self.model or "llama3.1"
+        resp = requests.post(
+            f"{base}/chat/completions",
+            headers={"Authorization": f"Bearer {key}",
+                     "content-type": "application/json"},
+            json={"model": model, "max_tokens": max_tokens,
+                  "messages": [{"role": "system", "content": system},
+                               {"role": "user", "content": user}]},
+            timeout=120)
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]
+
+
+# ---------------------------------------------------------------------------
+# Prose generation
+# ---------------------------------------------------------------------------
+
+class Styler:
+    def __init__(self, style: StyleProfile, client: LLMClient | None = None):
+        self.style = style
+        self.client = client or LLMClient()
+
+    def write_story(self, plan: StoryPlan, on_chapter=None) -> str:
+        outline = self._outline_text(plan)
+        parts = [f"# {self._title(plan)}\n"]
+        for ch in plan.chapters:
+            prose = self._write_chapter(plan, ch, outline)
+            parts.append(prose.strip() + "\n")
+            if on_chapter:
+                on_chapter(ch, prose)
+        return "\n".join(parts)
+
+    # -- prompt assembly ------------------------------------------------
+    def _system_prompt(self) -> str:
+        base = (
+            "You are a novelist adapting a real recorded game session into "
+            "fiction. Hard rules:\n"
+            "1. NEVER invent outcomes: every kill, death, objective and the "
+            "final result must match the provided event data exactly.\n"
+            "2. You MAY invent interiority: thoughts, sensations, dialogue, "
+            "atmosphere - as long as they are consistent with the facts.\n"
+            "3. Write in the requested language and style. No game-UI jargon "
+            "(no 'HP', 'respawn timer', 'creep score') - translate mechanics "
+            "into fictional equivalents.\n"
+            f"4. Narrative voice: {self.style.voice}. Target about "
+            f"{self.style.words_per_chapter} words per chapter.\n"
+            f"5. Language: {self.style.language}.\n"
+        )
+        if self.style.prompt:
+            base += f"\nSTYLE DIRECTIVES:\n{self.style.prompt}\n"
+        if self.style.sample:
+            base += ("\nIMITATE THE VOICE OF THIS WRITING SAMPLE "
+                     "(rhythm, diction, sentence length - not its content):\n"
+                     f"---\n{self.style.sample}\n---\n")
+        return base
+
+    def _outline_text(self, plan: StoryPlan) -> str:
+        ctx = plan.context
+        lines = [
+            f"GAME: {ctx.game} | OUTCOME: {ctx.outcome} | "
+            f"PROTAGONIST: {ctx.protagonist.name} ({ctx.protagonist.persona})",
+            f"ALLIES: {', '.join(ctx.allies) or '-'}",
+            f"OPPONENTS: {', '.join(ctx.opponents) or '-'}",
+            f"LOGLINE: {plan.logline}",
+            "CHAPTER OUTLINE:",
+        ]
+        for ch in plan.chapters:
+            lines.append(f"  Ch{ch.index} [{ch.arc_role}] ~ {ch.title_hint}")
+        return "\n".join(lines)
+
+    def _write_chapter(self, plan: StoryPlan, ch: Chapter, outline: str) -> str:
+        ev_lines = [
+            f"- t={e.t:.0f}: [{e.kind.value}]"
+            + (" (PROTAGONIST)" if e.protagonist_involved else "")
+            + f" {e.summary}"
+            for e in ch.events if e.importance >= 0.3 or e.protagonist_involved
+        ][:60]
+        user = (
+            f"{outline}\n\n"
+            f"Now write CHAPTER {ch.index} of {len(plan.chapters)} "
+            f"(arc role: {ch.arc_role}).\n"
+            f"Chapter turning point: {ch.turning_point.summary if ch.turning_point else '-'}\n"
+            f"Verified events in this chapter (chronological):\n"
+            + "\n".join(ev_lines)
+            + "\n\nOutput: a chapter title line starting with '## ', then the prose. "
+              "Nothing else."
+        )
+        return self.client.complete(self._system_prompt(), user,
+                                    max_tokens=self.style.words_per_chapter * 4)
+
+    @staticmethod
+    def _title(plan: StoryPlan) -> str:
+        return (f"{plan.context.protagonist.persona or plan.context.protagonist.name}"
+                f" - a {plan.context.game} tale")
+
+
+def export_json(plan: StoryPlan) -> str:
+    """Machine-readable dump of the plan, for debugging and other frontends."""
+    return json.dumps({
+        "logline": plan.logline,
+        "outcome": plan.context.outcome,
+        "chapters": [{
+            "index": c.index, "arc_role": c.arc_role,
+            "t": [c.t_start, c.t_end],
+            "turning_point": c.turning_point.summary if c.turning_point else None,
+            "events": [e.summary for e in c.events],
+        } for c in plan.chapters],
+    }, ensure_ascii=False, indent=2)
