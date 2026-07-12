@@ -1,7 +1,7 @@
 ---
 id: T-002
 title: 'CS2 adapter: outcome resolution, round stakes, clutch detection'
-status: todo
+status: done
 priority: 2
 depends: []
 ---
