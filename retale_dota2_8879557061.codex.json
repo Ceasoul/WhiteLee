@@ -1,0 +1,25 @@
+{
+  "heroes": {
+    "Slark": "小鱼人",
+    "Windranger": "风行",
+    "Dawnbreaker": "大锤",
+    "Rubick": "拉比克",
+    "Axe": "斧王",
+    "Legion Commander": "军团",
+    "Disruptor": "萨尔",
+    "Bane": "痛苦之源",
+    "Invoker": "卡尔",
+    "Morphling": "水人"
+  },
+  "protagonist_intro": "小鱼人“陆地神仙”",
+  "skills": {
+    "Dark Pact": "幽溟祭血煞",
+    "Pounce": "逆浪瞬影袭",
+    "Essence Shift": "摄魂夺魄功",
+    "Shadow Dance": "幻界天魔舞"
+  },
+  "factions": {
+    "Radiant": "天辉",
+    "Dire": "夜魇"
+  }
+}
