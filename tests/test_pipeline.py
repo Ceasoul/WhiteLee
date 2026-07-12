@@ -123,6 +123,10 @@ def test_adapter_event_stream(extraction):
     # chronological
     ts = [e.t for e in extraction.events]
     assert ts == sorted(ts)
+    # MATCH_START must lead even with negative-time pre-game events.
+    assert extraction.events[0].kind == EventKind.MATCH_START
+    assert extraction.events[1].kind == EventKind.SOCIAL
+    assert extraction.events[1].t == -40
     # protagonist involvement is marked
     assert any(e.protagonist_involved for e in extraction.events)
 
@@ -137,8 +141,22 @@ def test_chat_and_economy_events(extraction):
         and event.t == 600
         and event.summary == "The laning stage draws to a close."
     ]
+    tower_events = [
+        event for event in extraction.events
+        if event.kind == EventKind.OBJECTIVE and "tier-1 mid tower" in event.summary
+    ]
+    barracks_events = [
+        event for event in extraction.events
+        if event.kind == EventKind.OBJECTIVE and "melee barracks" in event.summary
+    ]
+    aggregate_events = [
+        event for event in extraction.events
+        if event.summary == "The Radiant tear through the Dire base - 4 structures fall."
+    ]
 
-    assert len(social_events) >= 3
+    assert len(social_events) >= 4
+    assert all(not event.summary.split(": ", 1)[-1].isdigit() for event in social_events)
+    assert any(event.t == -40 for event in social_events)
     assert any(event.actor == "Ceaseless" and event.importance == 0.35 for event in social_events)
     assert any(event.actor != "Ceaseless" and event.importance == 0.2 for event in social_events)
     assert len(economy_events) == 2
@@ -146,6 +164,15 @@ def test_chat_and_economy_events(extraction):
         "The tide of gold turns toward the Dire.",
         "The tide of gold turns toward the Radiant.",
     ]
+    assert len(tower_events) == 1
+    assert tower_events[0].summary == "The Dire's tier-1 mid tower falls."
+    assert tower_events[0].actor == "Juggernaut"
+    assert tower_events[0].protagonist_involved is True
+    assert len(aggregate_events) == 1
+    assert aggregate_events[0].importance == 0.75
+    assert len(aggregate_events[0].data["merged_keys"]) == 4
+    assert len(barracks_events) == 1
+    assert barracks_events[0].importance == 0.7
     assert len(lane_phase_events) == 1
 
 

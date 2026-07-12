@@ -166,6 +166,18 @@
  ],
  "chat": [
   {
+   "time": -83,
+   "player_slot": 3,
+   "type": "chatwheel",
+   "key": "71"
+  },
+  {
+   "time": -40,
+   "player_slot": 0,
+   "type": "chat",
+   "key": "Let's smoke when the horn fades."
+  },
+  {
    "time": 120,
    "player_slot": 0,
    "type": "chat",
@@ -188,6 +200,12 @@
    "player_slot": 0,
    "type": "chat",
    "key": "One more clean fight and the map is ours. Keep lanes shoved, hold buyback, and do not overextend beyond vision."
+  },
+  {
+   "time": 1810,
+   "player_slot": 128,
+   "type": "chatwheel",
+   "key": "93001"
   }
  ],
  "radiant_gold_adv": [
@@ -212,7 +230,7 @@
    "time": 900,
    "type": "CHAT_MESSAGE_TOWER_KILL",
    "unit": "npc_dota_hero_juggernaut",
-   "key": "dire_t1_mid"
+   "key": "npc_dota_badguys_tower1_mid"
   },
   {
    "time": 1600,
@@ -227,10 +245,34 @@
    "key": ""
   },
   {
-   "time": 2050,
+   "time": 1700,
    "type": "CHAT_MESSAGE_BARRACKS_KILL",
-   "unit": "Radiant",
-   "key": "dire_mid_rax"
+   "unit": "npc_dota_hero_juggernaut",
+   "key": "npc_dota_badguys_melee_rax_bot"
+  },
+  {
+   "time": 2010,
+   "type": "building_kill",
+   "unit": "npc_dota_hero_juggernaut",
+   "key": "npc_dota_badguys_tower3_mid"
+  },
+  {
+   "time": 2030,
+   "type": "building_kill",
+   "unit": "npc_dota_hero_juggernaut",
+   "key": "npc_dota_badguys_melee_rax_mid"
+  },
+  {
+   "time": 2050,
+   "type": "building_kill",
+   "unit": "npc_dota_hero_juggernaut",
+   "key": "npc_dota_badguys_range_rax_mid"
+  },
+  {
+   "time": 2060,
+   "type": "building_kill",
+   "unit": "npc_dota_hero_juggernaut",
+   "key": "npc_dota_badguys_tower4"
   }
  ],
  "teamfights": [

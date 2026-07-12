@@ -1,7 +1,7 @@
 ---
 id: T-005
 title: 'Dota 2: chat filtering, building enrichment, pre-game ordering'
-status: todo
+status: done
 priority: 1
 depends:
 - T-004

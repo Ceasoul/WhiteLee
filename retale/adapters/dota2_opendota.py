@@ -97,18 +97,19 @@ class Dota2OpenDotaAdapter(GameAdapter):
                        if (p.get("player_slot", 0) < 128) != is_radiant],
         )
 
-        events: list[NarrativeEvent] = [
-            NarrativeEvent(t=0, kind=EventKind.MATCH_START, actor=handle,
-                           summary=f"{hero} takes the field for the "
-                                   f"{context.world['team']}.",
-                           importance=0.5, protagonist_involved=True),
-        ]
-        events += self._objective_events(match)
+        events: list[NarrativeEvent] = []
+        events += self._objective_events(match, me, hero, hero_lookup)
         events += self._player_events(players, me, hero, hero_lookup)
         events += self._chat_events(match, players, me, hero_lookup)
         events += self._gold_swing_events(match)
         events += self._lane_phase_events(match)
         events += self._teamfight_events(match, me, hero)
+        match_start_time = min(0.0, min((event.t for event in events), default=0.0)) - 1.0
+        events.append(NarrativeEvent(
+            t=match_start_time, kind=EventKind.MATCH_START, actor=handle,
+            summary=f"{hero} takes the field for the "
+                    f"{context.world['team']}.",
+            importance=0.5, protagonist_involved=True))
         events.append(NarrativeEvent(
             t=context.duration, kind=EventKind.MATCH_END, actor=handle,
             summary=f"The Ancient falls. {context.outcome.capitalize()} "
@@ -212,9 +213,20 @@ class Dota2OpenDotaAdapter(GameAdapter):
             return "unknown"
         return "victory" if rw == is_radiant else "defeat"
 
-    def _objective_events(self, match: dict) -> list[NarrativeEvent]:
-        out = []
+    def _objective_events(
+        self,
+        match: dict,
+        me: dict[str, Any],
+        hero: str,
+        hero_lookup: dict[str, dict[Any, str]],
+    ) -> list[NarrativeEvent]:
+        out: list[NarrativeEvent] = []
         for obj in match.get("objectives", []) or []:
+            building_event = self._building_objective_event(obj, me, hero, hero_lookup)
+            if building_event is not None:
+                out.append(building_event)
+                continue
+
             kind, imp, phrase = _OBJECTIVE_MAP.get(
                 obj.get("type", ""), (EventKind.OBJECTIVE, 0.4, "objective event"))
             out.append(NarrativeEvent(
@@ -222,7 +234,7 @@ class Dota2OpenDotaAdapter(GameAdapter):
                 actor=str(obj.get("unit", "") or obj.get("team", "")),
                 target=str(obj.get("key", "")),
                 summary=phrase, importance=imp, data=obj))
-        return out
+        return self._aggregate_building_events(out)
 
     def _player_events(
         self,
@@ -285,8 +297,10 @@ class Dota2OpenDotaAdapter(GameAdapter):
         out: list[NarrativeEvent] = []
 
         for line in match.get("chat", []) or []:
+            if str(line.get("type", "")) != "chat":
+                continue
             message = str(line.get("key", "")).strip()
-            if not message:
+            if not message or message.isdigit():
                 continue
 
             actor, speaker_slot = self._chat_actor(line, players_by_slot, hero_lookup)
@@ -304,6 +318,160 @@ class Dota2OpenDotaAdapter(GameAdapter):
                 data=line,
             ))
         return out
+
+    def _building_objective_event(
+        self,
+        obj: dict[str, Any],
+        me: dict[str, Any],
+        hero: str,
+        hero_lookup: dict[str, dict[Any, str]],
+    ) -> NarrativeEvent | None:
+        objective_type = str(obj.get("type", ""))
+        if objective_type not in {
+            "building_kill",
+            "CHAT_MESSAGE_TOWER_KILL",
+            "CHAT_MESSAGE_BARRACKS_KILL",
+        }:
+            return None
+
+        building = self._parse_building_key(str(obj.get("key", "")))
+        if building is None:
+            return None
+        if building["kind"] == "fort":
+            return None
+
+        actor = None
+        protagonist_involved = False
+        unit = str(obj.get("unit", ""))
+        if unit.startswith("npc_dota_hero_"):
+            actor = self._resolve_hero_slug(unit, hero_lookup)
+            protagonist_involved = unit == self._hero_slug(me, hero_lookup) or actor == hero
+
+        if building["kind"] == "tower":
+            descriptor = f"tier-{building['tier']} {building['lane']} tower" if building["lane"] else f"tier-{building['tier']} tower"
+            importance = 0.45 + 0.05 * int(building["tier"])
+        else:
+            lane_text = f" in {building['lane']} lane" if building["lane"] else ""
+            descriptor = f"{building['label']}{lane_text}"
+            importance = 0.7
+
+        return NarrativeEvent(
+            t=float(obj.get("time", 0)),
+            kind=EventKind.OBJECTIVE,
+            actor=actor,
+            target=str(obj.get("key", "")),
+            summary=f"The {building['owner']}'s {descriptor} falls.",
+            importance=importance,
+            protagonist_involved=protagonist_involved,
+            data={
+                **obj,
+                "building_owner": building["owner"],
+                "building_kind": building["kind"],
+                "building_lane": building["lane"],
+                "building_key": str(obj.get("key", "")),
+            },
+        )
+
+    @staticmethod
+    def _parse_building_key(key: str) -> dict[str, Any] | None:
+        if not key:
+            return None
+        tokens = key.split("_")
+        owner = None
+        if "goodguys" in tokens or key.startswith("radiant_"):
+            owner = "Radiant"
+        elif "badguys" in tokens or key.startswith("dire_"):
+            owner = "Dire"
+        elif key.startswith("goodguys_"):
+            owner = "Radiant"
+        elif key.startswith("badguys_"):
+            owner = "Dire"
+        elif key.startswith("dire_"):
+            owner = "Dire"
+        elif key.startswith("radiant_"):
+            owner = "Radiant"
+        if owner is None:
+            return None
+
+        lane = None
+        if key.endswith("_top"):
+            lane = "top"
+        elif key.endswith("_mid"):
+            lane = "mid"
+        elif key.endswith("_bot"):
+            lane = "bottom"
+
+        compact_tokens = {"t1", "t2", "t3", "t4"}
+        tier_token = next((token for token in tokens if token.startswith("tower")), None)
+        if tier_token:
+            tier_text = tier_token.replace("tower", "")
+            if tier_text.isdigit():
+                return {"owner": owner, "kind": "tower", "tier": int(tier_text), "lane": lane}
+
+        compact_tier = next((token for token in tokens if token in compact_tokens), None)
+        if compact_tier:
+            return {"owner": owner, "kind": "tower", "tier": int(compact_tier[1]), "lane": lane}
+
+        if "melee" in tokens and "rax" in tokens:
+            return {"owner": owner, "kind": "barracks", "label": "melee barracks", "lane": lane}
+        if "range" in tokens and "rax" in tokens:
+            return {"owner": owner, "kind": "barracks", "label": "ranged barracks", "lane": lane}
+        if "fort" in tokens:
+            return {"owner": owner, "kind": "fort", "lane": lane}
+        return None
+
+    @staticmethod
+    def _aggregate_building_events(events: list[NarrativeEvent]) -> list[NarrativeEvent]:
+        aggregated: list[NarrativeEvent] = []
+        building_buffer: list[NarrativeEvent] = []
+
+        def flush_buffer() -> None:
+            if not building_buffer:
+                return
+            if len(building_buffer) >= 3:
+                first = building_buffer[0]
+                owner = str(first.data.get("building_owner", "unknown"))
+                winning_side = "Radiant" if owner == "Dire" else "Dire"
+                aggregated.append(NarrativeEvent(
+                    t=first.t,
+                    kind=EventKind.OBJECTIVE,
+                    actor=first.actor if all(event.actor == first.actor for event in building_buffer) else None,
+                    summary=(
+                        f"The {winning_side} tear through the {owner} base - "
+                        f"{len(building_buffer)} structures fall."
+                    ),
+                    importance=0.75,
+                    protagonist_involved=any(event.protagonist_involved for event in building_buffer),
+                    data={
+                        "building_owner": owner,
+                        "merged_keys": [event.data.get("building_key", event.target) for event in building_buffer],
+                    },
+                ))
+            else:
+                aggregated.extend(building_buffer)
+            building_buffer.clear()
+
+        for event in sorted(events, key=lambda item: item.t):
+            is_building = event.kind == EventKind.OBJECTIVE and "building_owner" in event.data
+            if not is_building:
+                flush_buffer()
+                aggregated.append(event)
+                continue
+
+            if not building_buffer:
+                building_buffer.append(event)
+                continue
+
+            same_owner = event.data.get("building_owner") == building_buffer[0].data.get("building_owner")
+            within_window = event.t - building_buffer[0].t <= 60
+            if same_owner and within_window:
+                building_buffer.append(event)
+            else:
+                flush_buffer()
+                building_buffer.append(event)
+
+        flush_buffer()
+        return aggregated
 
     def _gold_swing_events(self, match: dict[str, Any]) -> list[NarrativeEvent]:
         gold_advantage = match.get("radiant_gold_adv", []) or []
