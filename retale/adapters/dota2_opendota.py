@@ -140,6 +140,7 @@ class Dota2OpenDotaAdapter(GameAdapter):
                 "time_unit": "seconds",
                 "match_id": match.get("match_id"),
                 "parsed": parsed,
+                "roster": self._roster(players, me, hero_lookup),
             },
             allies=[self._hero_name(p, hero_lookup) for p in players
                     if (p.get("player_slot", 0) < 128) == is_radiant and p is not me],
@@ -297,12 +298,51 @@ class Dota2OpenDotaAdapter(GameAdapter):
         # default: highest kill participation
         return max(players, key=lambda p: (p.get("kills", 0) + p.get("assists", 0)))
 
+    def _roster(
+        self,
+        players: list[dict[str, Any]],
+        protagonist: dict[str, Any],
+        hero_lookup: dict[str, dict[Any, str]],
+    ) -> list[dict[str, Any]]:
+        return [
+            {
+                "name": str(player.get("personaname") or self._hero_name(player, hero_lookup)),
+                "hero": self._hero_name(player, hero_lookup),
+                "side": "Radiant" if int(player.get("player_slot", 0) or 0) < 128 else "Dire",
+                "is_protagonist": player is protagonist,
+                "kills": self._int_stat(player.get("kills")),
+                "deaths": self._int_stat(player.get("deaths")),
+                "assists": self._int_stat(player.get("assists")),
+                "max_streak": self._max_counter_key(player.get("kill_streaks")),
+                "max_multi_kill": self._max_counter_key(player.get("multi_kills")),
+            }
+            for player in players
+        ]
+
     @staticmethod
     def _outcome(match: dict, is_radiant: bool) -> str:
         rw = match.get("radiant_win")
         if rw is None:
             return "unknown"
         return "victory" if rw == is_radiant else "defeat"
+
+    @staticmethod
+    def _int_stat(value: Any) -> int:
+        try:
+            return int(value or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    @staticmethod
+    def _max_counter_key(counter: Any) -> int:
+        if not isinstance(counter, dict):
+            return 0
+        values = [
+            int(raw_key)
+            for raw_key, count in counter.items()
+            if Dota2OpenDotaAdapter._int_stat(count) > 0 and str(raw_key).isdigit()
+        ]
+        return max(values, default=0)
 
     def _objective_events(
         self,
@@ -713,7 +753,7 @@ class Dota2OpenDotaAdapter(GameAdapter):
                     summary=summary,
                     importance=importance,
                     protagonist_involved=protagonist_involved,
-                    data=entry,
+                    data={**entry, "beat": "buyback"},
                 ))
         return out
 

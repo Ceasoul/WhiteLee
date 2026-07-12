@@ -152,8 +152,7 @@ def test_chat_and_economy_events(extraction):
     economy_events = [event for event in extraction.events if event.kind == EventKind.ECONOMY]
     buyback_events = [
         event for event in extraction.events
-        if event.kind == EventKind.ECONOMY and "second chance" in event.summary
-        or event.kind == EventKind.ECONOMY and "blood price" in event.summary
+        if event.kind == EventKind.ECONOMY and event.data.get("beat") == "buyback"
     ]
     rune_events = [
         event for event in extraction.events
@@ -230,6 +229,7 @@ def test_chat_and_economy_events(extraction):
     assert len(buyback_events) == 2
     assert {event.actor for event in buyback_events} == {"Slark", "Lion"}
     assert sorted(event.importance for event in buyback_events) == [0.5, 0.7]
+    assert all(event.data["beat"] == "buyback" for event in buyback_events)
     assert len(rune_events) == 1
     assert rune_events[0].summary == "Slark seizes a Haste rune."
     assert len(signature_events) == 1

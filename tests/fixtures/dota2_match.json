@@ -9,7 +9,11 @@
    "personaname": "Ceaseless",
    "account_id": 1000,
    "kills": 7,
+  "deaths": 3,
    "assists": 0,
+  "kill_streaks": {
+   "3": 1
+  },
    "kills_log": [
     {
      "time": 310,
@@ -37,7 +41,7 @@
     },
     {
      "time": 2140,
-     "key": "npc_dota_hero_spirit_breaker"
+     "key": "npc_dota_hero_pudge"
     }
    ],
    "purchase_log": [
@@ -148,8 +152,9 @@
    "hero_id": 21,
    "personaname": "HookCity",
    "account_id": 2001,
-   "kills": 0,
-   "assists": 0,
+  "kills": 4,
+  "deaths": 6,
+  "assists": 2,
    "kills_log": [
     {
      "time": 700,
@@ -168,8 +173,15 @@
    "hero_id": 22,
    "personaname": "BangBang",
    "account_id": 2002,
-   "kills": 0,
-   "assists": 0,
+  "kills": 15,
+  "deaths": 2,
+  "assists": 4,
+  "kill_streaks": {
+   "10": 1
+  },
+  "multi_kills": {
+   "5": 1
+  },
    "kills_log": [],
    "purchase_log": [],
    "buyback_log": []

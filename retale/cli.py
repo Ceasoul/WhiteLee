@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Callable
 
 from retale.adapters.base import ExtractionResult, GameAdapter
+from retale.narrative.scout import render_report, scout
 from retale.narrative.planner import Chapter, Planner
 from retale.narrative.styler import LLMClient, StyleProfile, Styler, export_json
 from retale.output import write_epub
@@ -58,6 +59,8 @@ def main(argv: list[str] | None = None) -> int:
                    help="output format")
     p.add_argument("--dry-run", action="store_true",
                    help="print the chapter plan as JSON, skip LLM generation")
+    p.add_argument("--scout", action="store_true",
+                   help="print a prospecting report and skip planning and LLM generation")
     args = p.parse_args(argv)
 
     adapter = reg[args.game]()
@@ -67,6 +70,10 @@ def main(argv: list[str] | None = None) -> int:
           f"{result.context.protagonist.name} "
           f"({result.context.protagonist.persona}) | "
           f"outcome: {result.context.outcome}", file=sys.stderr)
+
+    if args.scout:
+        print(render_report(scout(result.context, result.events)))
+        return 0
 
     plan = Planner(target_chapters=args.chapters).plan(result.context, result.events)
     print(f"[retale] planned {len(plan.chapters)} chapters | {plan.logline}",
