@@ -91,6 +91,9 @@ class Dota2OpenDotaAdapter(GameAdapter):
         ]
         events += self._objective_events(match)
         events += self._player_events(players, me, hero)
+        events += self._chat_events(match, players, me)
+        events += self._gold_swing_events(match)
+        events += self._lane_phase_events(match)
         events += self._teamfight_events(match, me, hero)
         events.append(NarrativeEvent(
             t=context.duration, kind=EventKind.MATCH_END, actor=handle,
@@ -180,10 +183,90 @@ class Dota2OpenDotaAdapter(GameAdapter):
                     actor=hero, target=item,
                     summary=f"{hero} completed {item.replace('_', ' ').title()}.",
                     importance=0.45, protagonist_involved=True))
-        # chat (SOCIAL flavor)
-        for c in (players[0].get("chat") if players else None) or match_chat(players):
-            pass  # chat lives at match level; handled below if present
         return out
+
+    def _chat_events(
+        self, match: dict[str, Any], players: list[dict], me: dict[str, Any]
+    ) -> list[NarrativeEvent]:
+        players_by_slot = {
+            int(player.get("player_slot", -1)): player
+            for player in players
+            if player.get("player_slot") is not None
+        }
+        protagonist_slot = int(me.get("player_slot", -1))
+        out: list[NarrativeEvent] = []
+
+        for line in match.get("chat", []) or []:
+            message = str(line.get("key", "")).strip()
+            if not message:
+                continue
+
+            actor, speaker_slot = self._chat_actor(line, players_by_slot)
+            protagonist_spoke = speaker_slot == protagonist_slot
+            truncated_message = message[:120]
+            summary = f"{actor}: {truncated_message}" if actor else truncated_message
+
+            out.append(NarrativeEvent(
+                t=float(line.get("time", 0)),
+                kind=EventKind.SOCIAL,
+                actor=actor or None,
+                summary=summary,
+                importance=0.35 if protagonist_spoke else 0.2,
+                protagonist_involved=protagonist_spoke,
+                data=line,
+            ))
+        return out
+
+    def _gold_swing_events(self, match: dict[str, Any]) -> list[NarrativeEvent]:
+        gold_advantage = match.get("radiant_gold_adv", []) or []
+        out: list[NarrativeEvent] = []
+
+        for minute in range(1, len(gold_advantage)):
+            current_advantage = gold_advantage[minute]
+            previous_advantage = gold_advantage[minute - 1]
+            if current_advantage is None or previous_advantage is None or minute < 3:
+                continue
+
+            current_sign = self._advantage_sign(current_advantage)
+            previous_sign = self._advantage_sign(previous_advantage)
+            if current_sign == 0 or previous_sign == 0 or current_sign == previous_sign:
+                continue
+
+            earlier_advantage = gold_advantage[minute - 3]
+            if earlier_advantage is None:
+                continue
+
+            swing = float(current_advantage) - float(earlier_advantage)
+            if abs(swing) <= 2000:
+                continue
+
+            favored_team = "Radiant" if current_sign > 0 else "Dire"
+            out.append(NarrativeEvent(
+                t=float(minute * 60),
+                kind=EventKind.ECONOMY,
+                summary=f"The tide of gold turns toward the {favored_team}.",
+                importance=0.55,
+                protagonist_involved=False,
+                data={
+                    "minute": minute,
+                    "radiant_gold_adv": current_advantage,
+                    "three_min_delta": swing,
+                },
+            ))
+        return out
+
+    def _lane_phase_events(self, match: dict[str, Any]) -> list[NarrativeEvent]:
+        if float(match.get("duration", 0)) <= 720:
+            return []
+        return [
+            NarrativeEvent(
+                t=600.0,
+                kind=EventKind.PHASE,
+                summary="The laning stage draws to a close.",
+                importance=0.35,
+                protagonist_involved=False,
+            )
+        ]
 
     def _teamfight_events(self, match: dict, me: dict, hero: str) -> list[NarrativeEvent]:
         out = []
@@ -204,7 +287,31 @@ class Dota2OpenDotaAdapter(GameAdapter):
                 data={"end": tf.get("end"), "deaths": deaths}))
         return out
 
+    @staticmethod
+    def _chat_actor(
+        line: dict[str, Any], players_by_slot: dict[int, dict[str, Any]]
+    ) -> tuple[str, int | None]:
+        speaker_slot = line.get("player_slot", line.get("unit"))
+        if isinstance(speaker_slot, str) and speaker_slot.isdigit():
+            speaker_slot = int(speaker_slot)
+        if isinstance(speaker_slot, int):
+            player = players_by_slot.get(speaker_slot)
+            if player:
+                actor = str(
+                    player.get("personaname") or Dota2OpenDotaAdapter._hero_name(player)
+                )
+                return actor, speaker_slot
+            return f"slot_{speaker_slot}", speaker_slot
 
-def match_chat(_players: list) -> list:
-    """Placeholder: OpenDota exposes chat at match level, wired in v0.2."""
-    return []
+        actor = str(line.get("unit", "")).strip()
+        if actor.startswith("npc_dota_hero_"):
+            actor = actor.replace("npc_dota_hero_", "").replace("_", " ").title()
+        return actor, None
+
+    @staticmethod
+    def _advantage_sign(value: int | float) -> int:
+        if value > 0:
+            return 1
+        if value < 0:
+            return -1
+        return 0

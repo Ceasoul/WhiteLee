@@ -38,6 +38,28 @@ def test_adapter_event_stream(extraction):
     assert any(e.protagonist_involved for e in extraction.events)
 
 
+def test_chat_and_economy_events(extraction):
+    social_events = [event for event in extraction.events if event.kind == EventKind.SOCIAL]
+    economy_events = [event for event in extraction.events if event.kind == EventKind.ECONOMY]
+    lane_phase_events = [
+        event
+        for event in extraction.events
+        if event.kind == EventKind.PHASE
+        and event.t == 600
+        and event.summary == "The laning stage draws to a close."
+    ]
+
+    assert len(social_events) >= 3
+    assert any(event.actor == "Ceaseless" and event.importance == 0.35 for event in social_events)
+    assert any(event.actor != "Ceaseless" and event.importance == 0.2 for event in social_events)
+    assert len(economy_events) == 2
+    assert [event.summary for event in economy_events] == [
+        "The tide of gold turns toward the Dire.",
+        "The tide of gold turns toward the Radiant.",
+    ]
+    assert len(lane_phase_events) == 1
+
+
 def test_planner_builds_arc(extraction):
     plan = Planner().plan(extraction.context, extraction.events)
     assert 3 <= len(plan.chapters) <= 9

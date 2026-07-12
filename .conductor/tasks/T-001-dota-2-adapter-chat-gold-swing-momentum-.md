@@ -1,7 +1,7 @@
 ---
 id: T-001
 title: 'Dota 2 adapter: chat, gold-swing momentum, lane-phase events'
-status: todo
+status: done
 priority: 1
 depends: []
 ---

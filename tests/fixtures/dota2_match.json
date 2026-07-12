@@ -174,6 +174,43 @@
    "purchase_log": []
   }
  ],
+ "chat": [
+  {
+   "time": 120,
+   "player_slot": 0,
+   "type": "chat",
+   "key": "Steady lane, I'll take farm."
+  },
+  {
+   "time": 540,
+   "player_slot": 128,
+   "type": "chat",
+   "key": "Missing mid. Back up now."
+  },
+  {
+   "time": 1180,
+   "player_slot": 3,
+   "type": "chat",
+   "key": "Smoke after this wave and collapse on Roshan."
+  },
+  {
+   "time": 1740,
+   "player_slot": 0,
+   "type": "chat",
+   "key": "One more clean fight and the map is ours. Keep lanes shoved, hold buyback, and do not overextend beyond vision."
+  }
+ ],
+ "radiant_gold_adv": [
+  100,
+  800,
+  1600,
+  2600,
+  -1500,
+  -2200,
+  -1800,
+  900,
+  1400
+ ],
  "objectives": [
   {
    "time": 290,
